@@ -454,6 +454,77 @@ def da_mf6_freyberg_smoother_test():
     assert os.path.exists(phi_file),phi_file
 
 
+def L96(homegrown=True):
+    N = 40  # dims
+    F = 2.0  # forcing
+    h = 0.05  # dt
+    tt = 1000  # total time
+
+    # run
+    x = run_L96(N=N, F=F, h=h, tt=tt, homegrown=homegrown)
+
+    # process results
+    #plot_hovmoeller(x, h=h, F=F, tt=tt, homegrown=homegrown)
+    #plot_time_series(x, tt=tt, F=F, homegrown=homegrown)
+    #plot_profiles(x, tt=tt, F=F, homegrown=homegrown)
+
+
+def run_L96(N, F, h, tt, homegrown, random_initial=False):
+    '''
+    homegrown : True means to use homegrown fourth-order Runge-Kutta solution;
+        False means to use scipy's odeint (which uses RK4)
+    random_initial : True means to initialize Lorenz state vector randomly;
+        False means to initialize as uniform with some perturbation.
+    '''
+
+    np.random.seed(123)
+
+    t = np.arange(0.0, tt * h, h)
+    x = np.zeros(shape=(t.shape[0], N))
+    if random_initial:
+        x[0, :] = np.random.rand(N)
+    else:
+        x[0, :] = F * np.ones(N)
+        x[0, 19] += 0.01  # add perturbation
+
+    if homegrown:
+        for ti in range(1, x.shape[0]):  # t:
+            x[ti, :] = rK4(xt=x[ti - 1], h=h, N=N, F=F)
+    else:
+        raise Exception("scipy is not a dependency; just for initial testing purposes")
+        #from scipy.integrate import odeint
+        #x = odeint(lorenz96, x[0], t, args=(N, F))
+
+    return x
+
+def rK4(xt, h, N, F):
+    xt = xt.copy()
+    k1 = h * lorenz96(xt, h, N, F)
+    k2 = h * lorenz96(xt + k1 / 2, h, N, F)
+    k3 = h * lorenz96(xt + k2 / 2, h, N, F)
+    k4 = h * lorenz96(xt + k3, h, N, F)
+    xt += 1 / 6 * (k1 + 2 * (k2 + k3) + k4)
+
+    return xt
+
+def lorenz96(x, t, N, F):
+    # The Lorenz 1996 model (Lorenz E., 1996. ``Predictability: a problem partly solved'')
+
+    dxdt = np.zeros(N)
+    # edges first
+    dxdt[0] = (x[1] - x[N-2]) * x[N-1] - x[0]
+    dxdt[1] = (x[2] - x[N-1]) * x[0] - x[1]
+    dxdt[N-1] = (x[0] - x[N-3]) * x[N-2] - x[N-1]
+    for i in range(2, N-1):  # now the rest
+        dxdt[i] = (x[i+1] - x[i-2]) * x[i-1] - x[i]
+    dxdt = dxdt + F
+
+    # Alternatively can use np.roll
+    #dxdt = (-np.roll(x, 1) * (np.roll(x, 2) - np.roll(x, -1)) - x + F)
+
+    return dxdt
+
+
 if __name__ == "__main__":
     
     

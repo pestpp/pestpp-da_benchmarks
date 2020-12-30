@@ -524,6 +524,46 @@ def lorenz96(x, t, N, F):
 
     return dxdt
 
+def plot_hovmoeller(x, h, F, tt, homegrown, plot_all_times=True):
+    fig1, ax2 = plt.subplots()
+    if plot_all_times:
+        assert tt == x.shape[0]
+        t_range = np.arange(0, x.shape[0] * h, h)
+        xxx, yyy = np.meshgrid(np.arange(x.shape[1]), t_range)
+        CS = ax2.contourf(xxx, yyy, x[:])
+    else:
+        last_few = 200
+        t_range = np.arange((x.shape[0] - last_few) * h, x.shape[0] * h, h)
+        xxx, yyy = np.meshgrid(np.arange(x.shape[1]), t_range)
+        CS = ax2.contourf(xxx, yyy, x[-t_range.shape[0]:])
+    c = plt.colorbar(CS)
+    ax2.set_xlabel("equidistant sites along latitude circle", fontsize=12)
+    if plot_all_times:
+        ax2.set_ylabel("time", fontsize=12)
+    else:
+        ax2.set_ylabel("time step index", fontsize=12)
+    ax2.set_title("$F$ = {}".format(F), fontsize=12)
+    #plt.savefig("l96_hovmoeller_F{0}_homegrown{1}.pdf".format(F, homegrown))
+
+def plot_time_series(x, tt, F, homegrown):
+    fig, ax = plt.subplots()
+    start_time, end_time = tt - 100, tt
+    start_loc, end_loc = 5, 8
+    lines = ax.plot(np.arange(start_time, end_time),
+                    x[start_time:end_time, start_loc:end_loc])
+    ax.legend(lines, list(np.arange(start_loc, end_loc)), loc='upper right')
+    ax.set_ylabel("$x_{0},..,x_{1}$".format(start_loc, end_loc - 1))
+    ax.set_xlabel("time step index")
+    #plt.savefig("lorenz_ts_F{0}_homegrown{1}.pdf".format(F, homegrown))
+
+def plot_profiles(x, tt, F, homegrown):
+    fig, ax = plt.subplots()
+    time = tt - 1  #start_time, end_time = 4000, 4100
+    lines = ax.plot(np.arange(x.shape[1]), x[time, :])
+    #ax.legend(lines, list(np.arange(1)), loc='upper right')
+    ax.set_ylabel("$x$ at time step {0}".format(time))
+    ax.set_xlabel("site along lat circle")
+    #plt.savefig("lorenz_profile_F{0}_homegrown{1}.pdf".format(F, homegrown))
 
 if __name__ == "__main__":
     

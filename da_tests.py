@@ -477,6 +477,7 @@ def run_L96(N, F, h, tt, homegrown, random_initial=False):
         False means to initialize as uniform with some perturbation.
     '''
 
+
     np.random.seed(123)
 
     t = np.arange(0.0, tt * h, h)
@@ -487,9 +488,16 @@ def run_L96(N, F, h, tt, homegrown, random_initial=False):
         x[0, :] = F * np.ones(N)
         x[0, 19] += 0.01  # add perturbation
 
+    with open(os.path.join('l96_out.csv'), 'w') as f:
+        f.write(",")
+        for col in range(N):
+            f.write("x_{},".format(col))
     if homegrown:
         for ti in range(1, x.shape[0]):  # t:
             x[ti, :] = rK4(xt=x[ti - 1], h=h, N=N, F=F)
+            with open(os.path.join('l96_out.csv'), 'a') as f:
+                f.write("\n{},".format(ti - 1))
+                [f.write("{},".format(a)) for a in x[ti, :]]
     else:
         raise Exception("scipy is not a dependency; just for initial testing purposes")
         #from scipy.integrate import odeint

@@ -454,6 +454,48 @@ def da_mf6_freyberg_smoother_test():
     assert os.path.exists(phi_file),phi_file
 
 
+def build_lorenz_pst():
+    t_d = os.path.join("lorenz96", "template_seq")
+    if os.path.exists(t_d):
+        shutil.rmtree(t_d)
+    shutil.copytree(os.path.join("lorenz96", "template"), t_d)
+    os.chdir(os.path.join(t_d))
+
+    # run forward check
+    pyemu.os_utils.run("python rk4_lorenz96.py")
+
+    out_csv = "l96_out.csv"
+    odf = pyemu.pst_utils.csv_to_ins_file(os.path.join(out_csv))# only_cols=cols)
+    ins_file = out_csv + ".ins"
+
+    in_csv = "l96_in.csv"
+    F = pd.read_csv(os.path.join(in_csv))['F'][0]
+    tpl_file = in_csv + ".tpl"
+
+    pst = pyemu.helpers.pst_from_io_files(tpl_file, in_csv, ins_file, out_csv)
+
+    obs = pst.observation_data
+    obs.loc[odf.index, "obsval"] = odf.obsval
+
+    par = pst.parameter_data
+    par.loc["forcing", "parval1"] = F
+    par.loc["forcing", "parlbnd"] = 0.0
+    par.loc["forcing", "parubnd"] = 9.0
+
+    pst.control_data.noptmax = 1
+    pst.model_command = "python forward_run.py"
+
+    with open(os.path.join("forward_run.py"), 'w') as f:
+        f.write("import rk4_lorenz96\n")
+        f.write("rk4_lorenz96.L96()\n")
+
+    pst.write(pst.filename)
+
+    #do pestpp test run here
+
+    os.chdir(os.path.join("..", ".."))
+
+
 if __name__ == "__main__":
     
     

@@ -496,8 +496,110 @@ def build_lorenz_pst():
     os.chdir(os.path.join("..", ".."))
 
 
+def da_build_mf6_freyberg_seq_localizer_tbl():
+    import flopy
+    t_d = os.path.join("mf6_freyberg","template_seq")
+    assert os.path.exists(t_d)
+    sim = flopy.mf6.MFSimulation.load(sim_ws=t_d)
+    m = sim.get_model("freyberg6")
+    mg = m.modelgrid
+    xcel = mg.xcellcenters
+    ycel = mg.ycellcenters
+    pst = pyemu.Pst(os.path.join(t_d,"freyberg6_run_da2.pst"))
+
+    obs = pst.observation_data
+    nzobs = obs.loc[pst.nnz_obs_names,:]
+    snzobs = nzobs.loc[nzobs.obsnme.str.contains("head"),:]
+    snzobs.loc[:, "j"] = snzobs.obsnme.apply(lambda x: int(x.split("_")[-1]))
+    snzobs.loc[:, "i"] = snzobs.obsnme.apply(lambda x: int(x.split("_")[-2]))
+    snzobs.loc[:, "k"] = snzobs.obsnme.apply(lambda x: int(x.split("_")[-3]))
+    snzobs.loc[:, "x"] = snzobs.apply(lambda x: xcel[x.i, x.j], axis=1)
+    snzobs.loc[:, "y"] = snzobs.apply(lambda x: ycel[x.i, x.j], axis=1)
+
+    par = pst.parameter_data
+    spar = par.loc[par.pargp.apply(lambda x: "wel" not in x and "rch" not in x and "pargp" not in x),:]
+    spar.loc[:,"j"] = spar.parnme.apply(lambda x: int(x.split("_")[-1]))
+    spar.loc[:, "i"] = spar.parnme.apply(lambda x: int(x.split("_")[-2]))
+    spar.loc[:, "k"] = spar.parnme.apply(lambda x: int(x.split("_")[-3]))
+    spar.loc[:,"x"] = spar.apply(lambda x: xcel[x.i,x.j],axis=1)
+    spar.loc[:, "y"] = spar.apply(lambda x: ycel[x.i, x.j], axis=1)
+    spar_grps = spar.pargp.unique()
+
+    # these are parameter groups that will not be localized
+    other_grps = [g for g in pst.adj_par_groups if g not in spar_grps]
+    loc_cols = other_grps
+    loc_cols.extend(spar.parnme.tolist())
+    d_thres = 2500 # 20 model cells
+    df = pd.DataFrame(columns=loc_cols,index=pst.nnz_obs_names)
+    df.loc[:,:] = 1.0
+    # for each obs, find pars that are within d_thres distance
+    for oname in snzobs.obsnme:
+        ox,oy = snzobs.loc[oname,"x"], snzobs.loc[oname,"y"]
+        # calc squared distance from this obs to all spatial pars
+        d = spar.apply(lambda x: (x.x - ox)**2 + (x.y-oy)**2,axis=1)
+        # ident pars that are too far
+        d = d.loc[d>d_thres**2]
+        # set pars that are too far to 0.0 in the localizer
+        df.loc[oname,d.index] = 0.0
+    print(df.sum().sort_values())
+    #print(df.shape)
+    pyemu.Matrix.from_dataframe(df).to_coo(os.path.join(t_d,"seq_tbl_loc.jcb"))
+
+
+def da_build_mf6_freyberg_seq_localizer():
+    import flopy
+    t_d = os.path.join("mf6_freyberg","template_seq")
+    assert os.path.exists(t_d)
+    sim = flopy.mf6.MFSimulation.load(sim_ws=t_d)
+    m = sim.get_model("freyberg6")
+    mg = m.modelgrid
+    xcel = mg.xcellcenters
+    ycel = mg.ycellcenters
+    pst = pyemu.Pst(os.path.join(t_d,"freyberg6_run_da1.pst"))
+
+    obs = pst.observation_data
+    nzobs = obs.loc[pst.nnz_obs_names,:]
+    snzobs = nzobs.loc[nzobs.obsnme.str.contains("trgw"),:]
+    snzobs.loc[:, "j"] = snzobs.obsnme.apply(lambda x: int(x.split("_")[-2]))
+    snzobs.loc[:, "i"] = snzobs.obsnme.apply(lambda x: int(x.split("_")[-3]))
+    snzobs.loc[:, "k"] = snzobs.obsnme.apply(lambda x: int(x.split("_")[-4]))
+    snzobs.loc[:, "x"] = snzobs.apply(lambda x: xcel[x.i, x.j], axis=1)
+    snzobs.loc[:, "y"] = snzobs.apply(lambda x: ycel[x.i, x.j], axis=1)
+
+    par = pst.parameter_data
+    spar = par.loc[par.pargp.apply(lambda x: "wel" not in x and "rch" not in x and "pargp" not in x),:]
+    spar.loc[:,"j"] = spar.parnme.apply(lambda x: int(x.split("_")[-1]))
+    spar.loc[:, "i"] = spar.parnme.apply(lambda x: int(x.split("_")[-2]))
+    spar.loc[:, "k"] = spar.parnme.apply(lambda x: int(x.split("_")[-3]))
+    spar.loc[:,"x"] = spar.apply(lambda x: xcel[x.i,x.j],axis=1)
+    spar.loc[:, "y"] = spar.apply(lambda x: ycel[x.i, x.j], axis=1)
+    spar_grps = spar.pargp.unique()
+
+    # these are parameter groups that will not be localized
+    other_grps = [g for g in pst.adj_par_groups if g not in spar_grps]
+    loc_cols = other_grps
+    loc_cols.extend(spar.parnme.tolist())
+    d_thres = 2500 # 20 model cells
+    df = pd.DataFrame(columns=loc_cols,index=pst.nnz_obs_names)
+    df.loc[:,:] = 1.0
+    # for each obs, find pars that are within d_thres distance
+    for oname in snzobs.obsnme:
+        ox,oy = snzobs.loc[oname,"x"], snzobs.loc[oname,"y"]
+        # calc squared distance from this obs to all spatial pars
+        d = spar.apply(lambda x: (x.x - ox)**2 + (x.y-oy)**2,axis=1)
+        # ident pars that are too far
+        d = d.loc[d>d_thres**2]
+        # set pars that are too far to 0.0 in the localizer
+        df.loc[oname,d.index] = 0.0
+    print(df.sum().sort_values())
+    #print(df.shape)
+    pyemu.Matrix.from_dataframe(df).to_coo(os.path.join(t_d,"seq_loc.jcb"))
+
 if __name__ == "__main__":
     
     
-    shutil.copy2(os.path.join("..","exe","windows","x64","Debug","pestpp-da.exe"),os.path.join("..","bin","pestpp-da.exe"))
-    da_mf6_freyberg_test_1()
+    #shutil.copy2(os.path.join("..","exe","windows","x64","Debug","pestpp-da.exe"),os.path.join("..","bin","pestpp-da.exe"))
+    #da_mf6_freyberg_test_2()
+    #da_prep_4_mf6_freyberg_seq_tbl()
+    da_build_mf6_freyberg_seq_localizer_tbl()
+    da_build_mf6_freyberg_seq_localizer()

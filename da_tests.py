@@ -31,7 +31,7 @@ num_reals = 20
 port = 4021
 
 
-def da_prep_4_mf6_freyberg_seq():
+def da_prep_4_mf6_freyberg_seq(sync_state_names=True):
     t_d = os.path.join("mf6_freyberg","template_seq")
     if os.path.exists(t_d):
         shutil.rmtree(t_d)
@@ -152,6 +152,7 @@ def da_prep_4_mf6_freyberg_seq():
 
     # now write ins and tpl file for these
     ic_parvals = {}
+    obs_to_par_map = dict{}
     for k in range(3):
         fname = os.path.join(t_d,"heads_{0}.dat".format(k))
         assert os.path.exists(fname),fname
@@ -172,7 +173,12 @@ def da_prep_4_mf6_freyberg_seq():
                     else:
                         oname = "head_{0:02d}_{1:03d}_{2:03d}".format(k,i,j)
                         f.write(" !{0}! ".format(oname))
-                        ft.write(" ~  {0} ~ ".format(oname))
+                        if sync_state_names:
+                            ft.write(" ~  {0} ~ ".format(oname))
+                        else:
+                            pname = "p"+oname
+                            ft.write(" ~  {0} ~ ".format(pname))
+                            obs_to_par_map[oname] = pname
                         ic_parvals[oname] = in_arr[i,j]
                 f.write("\n")
                 ft.write("\n")

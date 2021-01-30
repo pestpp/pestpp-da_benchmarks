@@ -152,7 +152,7 @@ def da_prep_4_mf6_freyberg_seq(sync_state_names=True):
 
     # now write ins and tpl file for these
     ic_parvals = {}
-    obs_to_par_map = dict{}
+    obs_to_par_map = dict()
     for k in range(3):
         fname = os.path.join(t_d,"heads_{0}.dat".format(k))
         assert os.path.exists(fname),fname
@@ -277,6 +277,10 @@ def da_prep_4_mf6_freyberg_seq(sync_state_names=True):
     pst.parameter_data.loc["perlen","partrans"] = "fixed"
     pst.pestpp_options["ies_num_reals"] = 5
     pst.pestpp_options["da_num_reals"] = 5
+    if not sync_state_names:
+        pst.observation_data.loc[:,"state_par_link"] = np.NaN
+        obs = pst.observation_data
+        obs.loc[:,"state_par_link"] = obs.obsnme.apply(lambda x: obs_to_par_map.get(x,np.NaN))
     pst.write(os.path.join(t_d,"freyberg6_run_da1.pst"),version=2)
     return pst
 

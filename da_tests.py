@@ -175,11 +175,13 @@ def da_prep_4_mf6_freyberg_seq(sync_state_names=True):
                         f.write(" !{0}! ".format(oname))
                         if sync_state_names:
                             ft.write(" ~  {0} ~ ".format(oname))
+                            ic_parvals[oname] = in_arr[i, j]
                         else:
                             pname = "p"+oname
                             ft.write(" ~  {0} ~ ".format(pname))
                             obs_to_par_map[oname] = pname
-                        ic_parvals[oname] = in_arr[i,j]
+                            ic_parvals[pname] = in_arr[i, j]
+
                 f.write("\n")
                 ft.write("\n")
         ft.close()
@@ -605,11 +607,31 @@ def da_build_mf6_freyberg_seq_localizer():
     #print(df.shape)
     pyemu.Matrix.from_dataframe(df).to_coo(os.path.join(t_d,"seq_loc.jcb"))
 
+def da_mf6_freyberg_test_3():
+    pst = da_prep_4_mf6_freyberg_seq(sync_state_names=True)
+    test_d = "mf6_freyberg"
+    t_d = os.path.join(test_d, "template_seq")
+    print(exe_path.replace("ies", "da"))
+    pst.control_data.noptmax = 0
+    pst.pestpp_options["ies_verbose_level"] = 4
+    pst.pestpp_options["ies_no_noise"] = True
+    pst.write(os.path.join(t_d, "freyberg6_run_da2.pst"), version=2)
+    pyemu.os_utils.run("{0} freyberg6_run_da2.pst".format(exe_path.replace("ies","da")),cwd=t_d)
+
+    pst.control_data.noptmax = -1
+    pst.pestpp_options["ies_num_reals"] = 15
+    pst.write(os.path.join(t_d, "freyberg6_run_da2.pst"), version=2)
+    pyemu.os_utils.start_workers(t_d, exe_path.replace("ies", "da"), "freyberg6_run_da2.pst",
+                                num_workers=15, worker_root=test_d, port=port,
+                                master_dir=os.path.join(test_d, "master_da_2"), verbose=True)
+
 if __name__ == "__main__":
     
     
-    #shutil.copy2(os.path.join("..","exe","windows","x64","Debug","pestpp-da.exe"),os.path.join("..","bin","pestpp-da.exe"))
+    shutil.copy2(os.path.join("..","exe","windows","x64","Debug","pestpp-da.exe"),os.path.join("..","bin","pestpp-da.exe"))
     #da_mf6_freyberg_test_2()
     #da_prep_4_mf6_freyberg_seq_tbl()
-    da_build_mf6_freyberg_seq_localizer_tbl()
-    da_build_mf6_freyberg_seq_localizer()
+    #da_build_mf6_freyberg_seq_localizer_tbl()
+    #da_build_mf6_freyberg_seq_localizer()
+    #da_prep_4_mf6_freyberg_seq(sync_state_names=False)
+    da_mf6_freyberg_test_3()

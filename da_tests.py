@@ -23,7 +23,7 @@ bin_path = os.path.join("..","..","..","bin")
 exe = ""
 if "windows" in platform.platform().lower():
     exe = ".exe"
-exe_path = os.path.join(bin_path, "pestpp-ies" + exe)
+exe_path = os.path.join(bin_path, "pestpp-da" + exe)
 
 
 noptmax = 4
@@ -625,6 +625,35 @@ def da_mf6_freyberg_test_3():
                                 num_workers=15, worker_root=test_d, port=port,
                                 master_dir=os.path.join(test_d, "master_da_2"), verbose=True)
 
+
+def prep_seq_10par_xsec():
+    test_d = "10par_xsec"
+    t_d = os.path.join(test_d, "template")
+    pst = pyemu.Pst(os.path.join(t_d,"pest.pst"))
+    par = pst.parameter_data
+    par.loc[:,"cycle"] = -1
+    strt_pars = par.loc[par.pargp=="strt","parnme"].tolist()
+    obs = pst.observation_data
+    obs.loc[:,"state_par_link"] = ""
+    obs.loc[obs.obgnme=="head1","state_par_link"] = strt_pars
+    obs.loc[:,"cycle"] = -1
+    pst.control_data.noptmax = -1
+    pst.model_input_data.loc[:,"cycle"] = -1
+    pst.model_output_data.loc[:,"cycle"] = -1
+
+
+    cycles = np.arange(0,1000)
+    odf = pd.DataFrame(index=cycles,columns=pst.nnz_obs_names)
+    odf.loc[:,:] = obs.loc[pst.nnz_obs_names,"obsval"].values
+    odf.T.to_csv(os.path.join(t_d,"obs_cycle_tbl.csv"))
+    
+    pst.pestpp_options["da_observation_cycle_table"] = "obs_cycle_tbl.csv"
+    pst.pestpp_options["da_num_reals"] = 5
+
+    pst.write(os.path.join(t_d,"pest_seq.pst"),version=2)
+    pyemu.os_utils.run("{0} pest_seq.pst".format(exe_path),cwd=t_d)
+
+
 if __name__ == "__main__":
     
     
@@ -634,4 +663,5 @@ if __name__ == "__main__":
     #da_build_mf6_freyberg_seq_localizer_tbl()
     #da_build_mf6_freyberg_seq_localizer()
     #da_prep_4_mf6_freyberg_seq(sync_state_names=False)
-    da_mf6_freyberg_test_3()
+    #da_mf6_freyberg_test_3()
+    prep_seq_10par_xsec()

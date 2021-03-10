@@ -296,6 +296,7 @@ def da_mf6_freyberg_test_1():
     pst.control_data.noptmax = 0
     pst.pestpp_options["ies_verbose_level"] = 4
     pst.pestpp_options["ies_no_noise"] = True
+    pst.pestpp_options["da_type"] = "iterative"
     pst.write(os.path.join(t_d, "freyberg6_run_da1.pst"), version=2)
     pyemu.os_utils.run("{0} freyberg6_run_da1.pst".format(exe_path.replace("ies","da")),cwd=t_d)
 
@@ -409,6 +410,7 @@ def da_mf6_freyberg_test_2():
     pst.control_data.noptmax = 0
     pst.pestpp_options["ies_verbose_level"] = 4
     pst.pestpp_options["ies_no_noise"] = True
+    pst.pestpp_options["da_type"] = "iterative"
     pst.write(os.path.join(t_d, "freyberg6_run_da2.pst"), version=2)
     pyemu.os_utils.run("{0} freyberg6_run_da2.pst".format(exe_path.replace("ies","da")),cwd=t_d)
 
@@ -448,6 +450,7 @@ def da_mf6_freyberg_smoother_test():
     pst.pestpp_options["ies_autoadaloc"] = False
     pst.pestpp_options.pop("ies_localizer",None)
     pst.pestpp_options["da_num_reals"] = 15
+    pst.pestpp_options["da_type"] = "iterative"
     pst.write(os.path.join(t_d,"freyberg6_run_da.pst"))
     pyemu.os_utils.run("{0} freyberg6_run_da.pst".format(exe_path.replace("-ies","-da")),cwd=t_d)
     
@@ -615,6 +618,7 @@ def da_mf6_freyberg_test_3():
     pst.control_data.noptmax = 0
     pst.pestpp_options["ies_verbose_level"] = 4
     pst.pestpp_options["ies_no_noise"] = True
+    pst.pestpp_options["da_type"] = "iterative"
     pst.write(os.path.join(t_d, "freyberg6_run_da2.pst"), version=2)
     pyemu.os_utils.run("{0} freyberg6_run_da2.pst".format(exe_path.replace("ies","da")),cwd=t_d)
 
@@ -627,6 +631,7 @@ def da_mf6_freyberg_test_3():
 
 
 def prep_seq_10par_xsec():
+    #todo: add localization to this test!
     test_d = "10par_xsec"
     t_d = os.path.join(test_d, "template")
     pst = pyemu.Pst(os.path.join(t_d,"pest.pst"))
@@ -637,18 +642,25 @@ def prep_seq_10par_xsec():
     obs.loc[:,"state_par_link"] = ""
     obs.loc[obs.obgnme=="head1","state_par_link"] = strt_pars
     obs.loc[:,"cycle"] = -1
-    pst.control_data.noptmax = -1
+    pst.control_data.noptmax = 1
     pst.model_input_data.loc[:,"cycle"] = -1
     pst.model_output_data.loc[:,"cycle"] = -1
 
 
-    cycles = np.arange(0,1000)
+    cycles = np.arange(0,20)
     odf = pd.DataFrame(index=cycles,columns=pst.nnz_obs_names)
     odf.loc[:,:] = obs.loc[pst.nnz_obs_names,"obsval"].values
     odf.T.to_csv(os.path.join(t_d,"obs_cycle_tbl.csv"))
-    
+    wdf = pd.DataFrame(index=cycles,columns=pst.nnz_obs_names)
+    wdf.loc[:,:] = 0.0
+    wdf.iloc[10:,:] = 1.0
+    wdf.T.to_csv(os.path.join(t_d,"weight_cycle_tbl.csv"))
+
+    pst.pestpp_options["da_type"] = "iterative"
     pst.pestpp_options["da_observation_cycle_table"] = "obs_cycle_tbl.csv"
-    pst.pestpp_options["da_num_reals"] = 5
+    pst.pestpp_options["da_weight_cycle_table"] = "weight_cycle_tbl.csv"
+
+    pst.pestpp_options["ies_num_reals"] = 5
 
     pst.write(os.path.join(t_d,"pest_seq.pst"),version=2)
     pyemu.os_utils.run("{0} pest_seq.pst".format(exe_path),cwd=t_d)
@@ -658,10 +670,10 @@ if __name__ == "__main__":
     
     
     shutil.copy2(os.path.join("..","exe","windows","x64","Debug","pestpp-da.exe"),os.path.join("..","bin","pestpp-da.exe"))
-    #da_mf6_freyberg_test_2()
+    da_mf6_freyberg_test_1()
     #da_prep_4_mf6_freyberg_seq_tbl()
     #da_build_mf6_freyberg_seq_localizer_tbl()
     #da_build_mf6_freyberg_seq_localizer()
     #da_prep_4_mf6_freyberg_seq(sync_state_names=False)
     #da_mf6_freyberg_test_3()
-    prep_seq_10par_xsec()
+    #prep_seq_10par_xsec()

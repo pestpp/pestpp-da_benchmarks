@@ -674,55 +674,102 @@ def seq_10par_xsec_state_est_test():
     odf.T.to_csv(os.path.join(t_d,"obs_cycle_tbl.csv"))
     wdf = pd.DataFrame(index=cycles,columns=pst.nnz_obs_names)
     wdf.loc[:,:] = 0.0
-    wdf.iloc[1,:] = 1.0
-    wdf.iloc[3:,[3,5]] = 1.0
+    wdf.iloc[1,[3,5]] = 1.0
+    wdf.iloc[3,:] = 1.0
     wdf.T.to_csv(os.path.join(t_d,"weight_cycle_tbl.csv"))
 
     pst.pestpp_options["lambda_scale_fac"] = 1.0
+    pst.pestpp_options["ies_lambda_mults"] = 1.0
     pst.pestpp_options["da_type"] = "mda"
     pst.pestpp_options["da_observation_cycle_table"] = "obs_cycle_tbl.csv"
     pst.pestpp_options["da_weight_cycle_table"] = "weight_cycle_tbl.csv"
-
-    pst.pestpp_options["ies_num_reals"] = 5
+    pst.pestpp_options["ies_num_reals"] = 10
 
     pst.write(os.path.join(t_d,"pest_seq.pst"),version=2)
-    pyemu.os_utils.run("{0} pest_seq.pst".format(exe_path),cwd=t_d)
-
+    #pyemu.os_utils.run("{0} pest_seq.pst".format(exe_path),cwd=t_d)
+    pyemu.os_utils.start_workers(t_d, exe_path.replace("ies", "da"), "pest_seq.pst",
+                                 num_workers=pst.pestpp_options["ies_num_reals"], worker_root=test_d, port=port,
+                                 master_dir=os.path.join(test_d, "master_se_mda_local"), verbose=True)
     # todo - some checks here
 
     pst.pestpp_options["ies_autoadaloc"] = True
     pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
-    pyemu.os_utils.run("{0} pest_seq.pst".format(exe_path), cwd=t_d)
+    pyemu.os_utils.start_workers(t_d, exe_path.replace("ies", "da"), "pest_seq.pst",
+                                 num_workers=pst.pestpp_options["ies_num_reals"], worker_root=test_d, port=port,
+                                 master_dir=os.path.join(test_d, "master_se_mda_local_aad"), verbose=True)
+
+    pst.pestpp_options["ies_loc_type"] = "cov"
+    pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
+    pyemu.os_utils.start_workers(t_d, exe_path.replace("ies", "da"), "pest_seq.pst",
+                                 num_workers=pst.pestpp_options["ies_num_reals"], worker_root=test_d, port=port,
+                                 master_dir=os.path.join(test_d, "master_se_mda_cov_aad"), verbose=True)
+
 
     pst.pestpp_options["ies_autoadaloc"] = False
+    pst.pestpp_options["ies_loc_type"] = "local"
     pst.pestpp_options["da_type"] = "iterative"
     pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
-    pyemu.os_utils.run("{0} pest_seq.pst".format(exe_path), cwd=t_d)
+    pyemu.os_utils.start_workers(t_d, exe_path.replace("ies", "da"), "pest_seq.pst",
+                                 num_workers=pst.pestpp_options["ies_num_reals"], worker_root=test_d, port=port,
+                                 master_dir=os.path.join(test_d, "master_se_glm_local"), verbose=True)
 
     pst.pestpp_options["ies_autoadaloc"] = True
     pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
-    pyemu.os_utils.run("{0} pest_seq.pst".format(exe_path), cwd=t_d)
+    pyemu.os_utils.start_workers(t_d, exe_path.replace("ies", "da"), "pest_seq.pst",
+                                 num_workers=pst.pestpp_options["ies_num_reals"], worker_root=test_d, port=port,
+                                 master_dir=os.path.join(test_d, "master_se_glm_local_aad"), verbose=True)
 
-    par.loc[:, "partrans"] = "log"
+    pst.pestpp_options["ies_loc_type"] = "cov"
+    pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
+    pyemu.os_utils.start_workers(t_d, exe_path.replace("ies", "da"), "pest_seq.pst",
+                                 num_workers=pst.pestpp_options["ies_num_reals"], worker_root=test_d, port=port,
+                                 master_dir=os.path.join(test_d, "master_se_glm_cov_aad"), verbose=True)
+
+    pst.parameter_data.loc[:, "partrans"] = "log"
     loc = get_loc(pst)
     pyemu.Matrix.from_dataframe(loc).to_ascii(os.path.join(t_d, "loc.mat"))
-    pst.pestpp_options["da_type"] = "mda"
     pst.pestpp_options["ies_autoadaloc"] = False
+    pst.pestpp_options["ies_loc_type"] = "local"
+    pst.pestpp_options["da_type"] = "mda"
+    pst.pestpp_options["lambda_scale_fac"] = [0.5,1.0]
+    pst.pestpp_options["ies_lambda_mults"] = [0.1,1.0,10.0]
+    pst.control_data.noptmax = 3
     pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
-    pyemu.os_utils.run("{0} pest_seq.pst".format(exe_path), cwd=t_d)
+    pyemu.os_utils.start_workers(t_d, exe_path.replace("ies", "da"), "pest_seq.pst",
+                                 num_workers=pst.pestpp_options["ies_num_reals"], worker_root=test_d, port=port,
+                                 master_dir=os.path.join(test_d, "master_da_mda_local"), verbose=True)
 
     pst.pestpp_options["ies_autoadaloc"] = True
     pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
-    pyemu.os_utils.run("{0} pest_seq.pst".format(exe_path), cwd=t_d)
+    pyemu.os_utils.start_workers(t_d, exe_path.replace("ies", "da"), "pest_seq.pst",
+                                 num_workers=pst.pestpp_options["ies_num_reals"], worker_root=test_d, port=port,
+                                 master_dir=os.path.join(test_d, "master_da_mda_local_aad"), verbose=True)
+
+    pst.pestpp_options["ies_loc_type"] = "cov"
+    pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
+    pyemu.os_utils.start_workers(t_d, exe_path.replace("ies", "da"), "pest_seq.pst",
+                                 num_workers=pst.pestpp_options["ies_num_reals"], worker_root=test_d, port=port,
+                                 master_dir=os.path.join(test_d, "master_da_mda_cov_aad"), verbose=True)
 
     pst.pestpp_options["ies_autoadaloc"] = False
+    pst.pestpp_options["ies_loc_type"] = "local"
     pst.pestpp_options["da_type"] = "iterative"
     pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
-    pyemu.os_utils.run("{0} pest_seq.pst".format(exe_path), cwd=t_d)
+    pyemu.os_utils.start_workers(t_d, exe_path.replace("ies", "da"), "pest_seq.pst",
+                                 num_workers=pst.pestpp_options["ies_num_reals"], worker_root=test_d, port=port,
+                                 master_dir=os.path.join(test_d, "master_da_glm_local"), verbose=True)
 
     pst.pestpp_options["ies_autoadaloc"] = True
     pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
-    pyemu.os_utils.run("{0} pest_seq.pst".format(exe_path), cwd=t_d)
+    pyemu.os_utils.start_workers(t_d, exe_path.replace("ies", "da"), "pest_seq.pst",
+                                 num_workers=pst.pestpp_options["ies_num_reals"], worker_root=test_d, port=port,
+                                 master_dir=os.path.join(test_d, "master_da_glm_local_aad"), verbose=True)
+
+    pst.pestpp_options["ies_loc_type"] = "cov"
+    pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
+    pyemu.os_utils.start_workers(t_d, exe_path.replace("ies", "da"), "pest_seq.pst",
+                                 num_workers=pst.pestpp_options["ies_num_reals"], worker_root=test_d, port=port,
+                                 master_dir=os.path.join(test_d, "master_da_glm_cov_aad"), verbose=True)
 
 
 if __name__ == "__main__":

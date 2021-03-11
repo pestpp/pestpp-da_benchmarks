@@ -630,33 +630,38 @@ def da_mf6_freyberg_test_3():
                                 master_dir=os.path.join(test_d, "master_da_2"), verbose=True)
 
 
-def prep_seq_10par_xsec():
+def seq_10par_xsec_state_est_test():
     #todo: add localization to this test!
     test_d = "10par_xsec"
     t_d = os.path.join(test_d, "template")
     pst = pyemu.Pst(os.path.join(t_d,"pest.pst"))
     par = pst.parameter_data
     par.loc[:,"cycle"] = -1
+    par.loc[:,"partrans"] = "fixed"
+    par.loc[par.parnme.str.contains("strt"),"partrans"] = "log"
     strt_pars = par.loc[par.pargp=="strt","parnme"].tolist()
     obs = pst.observation_data
+    obs.loc[obs.obsnme.str.startswith("h01"),"weight"] = 1.0
     obs.loc[:,"state_par_link"] = ""
     obs.loc[obs.obgnme=="head1","state_par_link"] = strt_pars
     obs.loc[:,"cycle"] = -1
     pst.control_data.noptmax = 1
+
     pst.model_input_data.loc[:,"cycle"] = -1
     pst.model_output_data.loc[:,"cycle"] = -1
 
-
-    cycles = np.arange(0,20)
+    cycles = np.arange(0,5)
     odf = pd.DataFrame(index=cycles,columns=pst.nnz_obs_names)
     odf.loc[:,:] = obs.loc[pst.nnz_obs_names,"obsval"].values
     odf.T.to_csv(os.path.join(t_d,"obs_cycle_tbl.csv"))
     wdf = pd.DataFrame(index=cycles,columns=pst.nnz_obs_names)
     wdf.loc[:,:] = 0.0
-    wdf.iloc[10:,:] = 1.0
+    wdf.iloc[1,:] = 1.0
+    wdf.iloc[3:,[3,5]] = 1.0
     wdf.T.to_csv(os.path.join(t_d,"weight_cycle_tbl.csv"))
 
-    pst.pestpp_options["da_type"] = "iterative"
+    pst.pestpp_options["lambda_scale_fac"] = 1.0
+    pst.pestpp_options["da_type"] = "mda"
     pst.pestpp_options["da_observation_cycle_table"] = "obs_cycle_tbl.csv"
     pst.pestpp_options["da_weight_cycle_table"] = "weight_cycle_tbl.csv"
 
@@ -665,15 +670,21 @@ def prep_seq_10par_xsec():
     pst.write(os.path.join(t_d,"pest_seq.pst"),version=2)
     pyemu.os_utils.run("{0} pest_seq.pst".format(exe_path),cwd=t_d)
 
+    # todo - some checks here
+
+    par.loc[:, "partrans"] = "log"
+    pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
+    pyemu.os_utils.run("{0} pest_seq.pst".format(exe_path), cwd=t_d)
 
 if __name__ == "__main__":
     
     
     shutil.copy2(os.path.join("..","exe","windows","x64","Debug","pestpp-da.exe"),os.path.join("..","bin","pestpp-da.exe"))
-    da_mf6_freyberg_test_1()
+    #da_mf6_freyberg_test_1()
+    #da_mf6_freyberg_test_2()
     #da_prep_4_mf6_freyberg_seq_tbl()
     #da_build_mf6_freyberg_seq_localizer_tbl()
     #da_build_mf6_freyberg_seq_localizer()
     #da_prep_4_mf6_freyberg_seq(sync_state_names=False)
     #da_mf6_freyberg_test_3()
-    #prep_seq_10par_xsec()
+    seq_10par_xsec_state_est_test()

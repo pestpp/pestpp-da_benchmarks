@@ -7,11 +7,11 @@ for PEST(++) datasets
 
 
 
-version: 5.0.7
-binary compiled on Nov 17 2020 at 13:11:44
+version: 5.0.11
+binary compiled on Mar 10 2021 at 20:42:26
 
 using control file: "freyberg6_run_da.pst"
-in directory: "C:\Dev\pestpp\benchmarks\mf6_freyberg\template"
+in directory: "C:\Dev\pestpp\pestpp-da_benchmarks\mf6_freyberg\template"
 on host: "WHITEJEREMY9828"
 
 control file parsing warning: could not find 'parameter data external' section for cycle info, all parameter quantities being assigned 'cycle'=-1
@@ -73,7 +73,7 @@ Model interface files:-
 
 ...preparing global parameter ensemble for all parameters across all cycles
 ...parcov loaded  from parameter bounds, using par_sigma_range 4
-...drawing parameter realizations:  15
+...loading par ensemble from binary file ies_prior.jcb
 ...preparing global observation ensemble for all observations across all cycles
 ...global parameter ensemble has 1 rows and 8175 columns
 ...global observation ensemble has 1 rows and 1025 columns
@@ -174,7 +174,7 @@ Model interface files:-
 ...number of adjustable parameters in cycle 0: 8175
 ...number of non-zero weighted observations in cycle 0: 36
 
-  ---  initializing cycle 0  ---  
+  ---  initializing  ---  
 
   ---  'noptmax'=0, running control file parameter values and quitting  ---  
 ...running control file parameter values

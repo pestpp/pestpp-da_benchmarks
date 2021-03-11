@@ -650,6 +650,24 @@ def seq_10par_xsec_state_est_test():
     pst.model_input_data.loc[:,"cycle"] = -1
     pst.model_output_data.loc[:,"cycle"] = -1
 
+    def get_loc(pst):
+
+        loc = pd.DataFrame(index=pst.nnz_obs_names,columns=pst.adj_par_names)
+        loc.loc[:,:] = 0.0
+        for pname in pst.adj_par_names:
+            cstr = pname.split('_')[1]
+            oname = [o for o in pst.nnz_obs_names if cstr in o.split('_')[1] == cstr][0]
+            # strt states can comm with all obs locs
+            if "strt" in pname:
+                loc.loc[:,pname] = 1.0
+            # static pars can only comm with obs in the same cell
+            else:
+                loc.loc[oname,pname] = 1.0
+        return loc
+
+    loc = get_loc(pst)
+    pyemu.Matrix.from_dataframe(loc).to_ascii(os.path.join(t_d,"loc.mat"))
+    pst.pestpp_options["ies_localizer"] = "loc.mat"
     cycles = np.arange(0,5)
     odf = pd.DataFrame(index=cycles,columns=pst.nnz_obs_names)
     odf.loc[:,:] = obs.loc[pst.nnz_obs_names,"obsval"].values
@@ -672,9 +690,40 @@ def seq_10par_xsec_state_est_test():
 
     # todo - some checks here
 
-    par.loc[:, "partrans"] = "log"
+    pst.pestpp_options["ies_autoadaloc"] = True
     pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
     pyemu.os_utils.run("{0} pest_seq.pst".format(exe_path), cwd=t_d)
+
+    pst.pestpp_options["ies_autoadaloc"] = False
+    pst.pestpp_options["da_type"] = "iterative"
+    pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
+    pyemu.os_utils.run("{0} pest_seq.pst".format(exe_path), cwd=t_d)
+
+    pst.pestpp_options["ies_autoadaloc"] = True
+    pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
+    pyemu.os_utils.run("{0} pest_seq.pst".format(exe_path), cwd=t_d)
+
+    par.loc[:, "partrans"] = "log"
+    loc = get_loc(pst)
+    pyemu.Matrix.from_dataframe(loc).to_ascii(os.path.join(t_d, "loc.mat"))
+    pst.pestpp_options["da_type"] = "mda"
+    pst.pestpp_options["ies_autoadaloc"] = False
+    pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
+    pyemu.os_utils.run("{0} pest_seq.pst".format(exe_path), cwd=t_d)
+
+    pst.pestpp_options["ies_autoadaloc"] = True
+    pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
+    pyemu.os_utils.run("{0} pest_seq.pst".format(exe_path), cwd=t_d)
+
+    pst.pestpp_options["ies_autoadaloc"] = False
+    pst.pestpp_options["da_type"] = "iterative"
+    pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
+    pyemu.os_utils.run("{0} pest_seq.pst".format(exe_path), cwd=t_d)
+
+    pst.pestpp_options["ies_autoadaloc"] = True
+    pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
+    pyemu.os_utils.run("{0} pest_seq.pst".format(exe_path), cwd=t_d)
+
 
 if __name__ == "__main__":
     
@@ -682,6 +731,7 @@ if __name__ == "__main__":
     shutil.copy2(os.path.join("..","exe","windows","x64","Debug","pestpp-da.exe"),os.path.join("..","bin","pestpp-da.exe"))
     #da_mf6_freyberg_test_1()
     #da_mf6_freyberg_test_2()
+    #da_mf6_freyberg_smoother_test()
     #da_prep_4_mf6_freyberg_seq_tbl()
     #da_build_mf6_freyberg_seq_localizer_tbl()
     #da_build_mf6_freyberg_seq_localizer()

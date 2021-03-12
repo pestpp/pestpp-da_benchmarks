@@ -296,7 +296,7 @@ def da_mf6_freyberg_test_1():
     pst.control_data.noptmax = 0
     pst.pestpp_options["ies_verbose_level"] = 4
     pst.pestpp_options["ies_no_noise"] = True
-    pst.pestpp_options["da_type"] = "iterative"
+    pst.pestpp_options["da_use_mda"] = False
     pst.write(os.path.join(t_d, "freyberg6_run_da1.pst"), version=2)
     pyemu.os_utils.run("{0} freyberg6_run_da1.pst".format(exe_path.replace("ies","da")),cwd=t_d)
 
@@ -410,7 +410,7 @@ def da_mf6_freyberg_test_2():
     pst.control_data.noptmax = 0
     pst.pestpp_options["ies_verbose_level"] = 4
     pst.pestpp_options["ies_no_noise"] = True
-    pst.pestpp_options["da_type"] = "iterative"
+    pst.pestpp_options["da_use_mda"] = False
     pst.write(os.path.join(t_d, "freyberg6_run_da2.pst"), version=2)
     pyemu.os_utils.run("{0} freyberg6_run_da2.pst".format(exe_path.replace("ies","da")),cwd=t_d)
 
@@ -450,7 +450,7 @@ def da_mf6_freyberg_smoother_test():
     pst.pestpp_options["ies_autoadaloc"] = False
     pst.pestpp_options.pop("ies_localizer",None)
     pst.pestpp_options["da_num_reals"] = 15
-    pst.pestpp_options["da_type"] = "iterative"
+    pst.pestpp_options["da_use_mda"] = False
     pst.write(os.path.join(t_d,"freyberg6_run_da.pst"))
     pyemu.os_utils.run("{0} freyberg6_run_da.pst".format(exe_path.replace("-ies","-da")),cwd=t_d)
     
@@ -618,7 +618,7 @@ def da_mf6_freyberg_test_3():
     pst.control_data.noptmax = 0
     pst.pestpp_options["ies_verbose_level"] = 4
     pst.pestpp_options["ies_no_noise"] = True
-    pst.pestpp_options["da_type"] = "iterative"
+    pst.pestpp_options["da_use_mda"] = False
     pst.write(os.path.join(t_d, "freyberg6_run_da2.pst"), version=2)
     pyemu.os_utils.run("{0} freyberg6_run_da2.pst".format(exe_path.replace("ies","da")),cwd=t_d)
 
@@ -654,20 +654,27 @@ def seq_10par_xsec_state_est_test():
 
         loc = pd.DataFrame(index=pst.nnz_obs_names,columns=pst.adj_par_names)
         loc.loc[:,:] = 0.0
+        ocells = loc.index.map(lambda x: int(x.split('_')[1]))
         for pname in pst.adj_par_names:
             cstr = pname.split('_')[1]
-            oname = [o for o in pst.nnz_obs_names if cstr in o.split('_')[1] == cstr][0]
+            cint = int(cstr)
             # strt states can comm with all obs locs
             if "strt" in pname:
-                loc.loc[:,pname] = 1.0
+                dist = (ocells - cint).map(np.abs)
+                loc_vals = 1 / (dist + 0.01)
+                loc_vals = loc_vals.values
+                loc_vals[loc_vals>1.0] = 1.0
+                loc.loc[:,pname] = loc_vals
             # static pars can only comm with obs in the same cell
             else:
-                loc.loc[oname,pname] = 1.0
+
+                oname = [o for o in pst.nnz_obs_names if cstr in o.split('_')[1] == cstr][0]
+                loc.loc[oname, pname] = 1.0
         return loc
 
     loc = get_loc(pst)
     pyemu.Matrix.from_dataframe(loc).to_ascii(os.path.join(t_d,"loc.mat"))
-    pst.pestpp_options["ies_localizer"] = "loc.mat"
+
     cycles = np.arange(0,5)
     odf = pd.DataFrame(index=cycles,columns=pst.nnz_obs_names)
     odf.loc[:,:] = obs.loc[pst.nnz_obs_names,"obsval"].values
@@ -680,7 +687,7 @@ def seq_10par_xsec_state_est_test():
 
     pst.pestpp_options["lambda_scale_fac"] = 1.0
     pst.pestpp_options["ies_lambda_mults"] = 1.0
-    pst.pestpp_options["da_type"] = "mda"
+    pst.pestpp_options["da_use_mda"] = True
     pst.pestpp_options["da_observation_cycle_table"] = "obs_cycle_tbl.csv"
     pst.pestpp_options["da_weight_cycle_table"] = "weight_cycle_tbl.csv"
     pst.pestpp_options["ies_num_reals"] = 10
@@ -689,8 +696,14 @@ def seq_10par_xsec_state_est_test():
     #pyemu.os_utils.run("{0} pest_seq.pst".format(exe_path),cwd=t_d)
     pyemu.os_utils.start_workers(t_d, exe_path.replace("ies", "da"), "pest_seq.pst",
                                  num_workers=pst.pestpp_options["ies_num_reals"], worker_root=test_d, port=port,
+                                 master_dir=os.path.join(test_d, "master_se_mda"), verbose=True)
+
+    pst.pestpp_options["ies_localizer"] = "loc.mat"
+    pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
+    # pyemu.os_utils.run("{0} pest_seq.pst".format(exe_path),cwd=t_d)
+    pyemu.os_utils.start_workers(t_d, exe_path.replace("ies", "da"), "pest_seq.pst",
+                                 num_workers=pst.pestpp_options["ies_num_reals"], worker_root=test_d, port=port,
                                  master_dir=os.path.join(test_d, "master_se_mda_local"), verbose=True)
-    # todo - some checks here
 
     pst.pestpp_options["ies_autoadaloc"] = True
     pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
@@ -707,7 +720,7 @@ def seq_10par_xsec_state_est_test():
 
     pst.pestpp_options["ies_autoadaloc"] = False
     pst.pestpp_options["ies_loc_type"] = "local"
-    pst.pestpp_options["da_type"] = "iterative"
+    pst.pestpp_options["da_use_mda"] = False
     pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
     pyemu.os_utils.start_workers(t_d, exe_path.replace("ies", "da"), "pest_seq.pst",
                                  num_workers=pst.pestpp_options["ies_num_reals"], worker_root=test_d, port=port,
@@ -730,10 +743,16 @@ def seq_10par_xsec_state_est_test():
     pyemu.Matrix.from_dataframe(loc).to_ascii(os.path.join(t_d, "loc.mat"))
     pst.pestpp_options["ies_autoadaloc"] = False
     pst.pestpp_options["ies_loc_type"] = "local"
-    pst.pestpp_options["da_type"] = "mda"
+    pst.pestpp_options["da_use_mda"] = True
     pst.pestpp_options["lambda_scale_fac"] = [0.5,1.0]
     pst.pestpp_options["ies_lambda_mults"] = [0.1,1.0,10.0]
     pst.control_data.noptmax = 3
+    pst.pestpp_options.pop("ies_localizer")
+    pyemu.os_utils.start_workers(t_d, exe_path.replace("ies", "da"), "pest_seq.pst",
+                                 num_workers=pst.pestpp_options["ies_num_reals"], worker_root=test_d, port=port,
+                                 master_dir=os.path.join(test_d, "master_se_glm"), verbose=True)
+
+    pst.pestpp_options["ies_localizer"] = "loc.mat"
     pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
     pyemu.os_utils.start_workers(t_d, exe_path.replace("ies", "da"), "pest_seq.pst",
                                  num_workers=pst.pestpp_options["ies_num_reals"], worker_root=test_d, port=port,
@@ -753,7 +772,7 @@ def seq_10par_xsec_state_est_test():
 
     pst.pestpp_options["ies_autoadaloc"] = False
     pst.pestpp_options["ies_loc_type"] = "local"
-    pst.pestpp_options["da_type"] = "iterative"
+    pst.pestpp_options["da_use_mda"] = False
     pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
     pyemu.os_utils.start_workers(t_d, exe_path.replace("ies", "da"), "pest_seq.pst",
                                  num_workers=pst.pestpp_options["ies_num_reals"], worker_root=test_d, port=port,

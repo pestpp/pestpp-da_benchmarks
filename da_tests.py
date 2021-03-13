@@ -796,16 +796,89 @@ def seq_10par_xsec_state_est_test():
                                  master_dir=os.path.join(test_d, "master_da_glm_cov_aad"), verbose=True)
 
 
+def seq_10par_xsec_fixed_test():
+    
+    test_d = "10par_xsec"
+    t_d = os.path.join(test_d, "template")
+    pst = pyemu.Pst(os.path.join(t_d,"pest.pst"))
+    par = pst.parameter_data
+    par.loc[:,"cycle"] = -1
+    
+    par.loc[par.parnme.str.contains("strt"),"partrans"] = "log"
+    par.loc["strt_01","partrans"] = "fixed"
+    strt_pars = par.loc[par.pargp=="strt","parnme"].tolist()
+    obs = pst.observation_data
+    obs.loc[obs.obsnme.str.startswith("h01"),"weight"] = 1.0
+    obs.loc[:,"state_par_link"] = ""
+    obs.loc[obs.obgnme=="head1","state_par_link"] = strt_pars
+    obs.loc[:,"cycle"] = -1
+    
+    pst.control_data.noptmax = 1
+
+    pst.model_input_data.loc[:,"cycle"] = -1
+    pst.model_output_data.loc[:,"cycle"] = -1
+
+    def get_loc(pst):
+
+        loc = pd.DataFrame(index=pst.nnz_obs_names,columns=pst.adj_par_names)
+        loc.loc[:,:] = 0.0
+        ocells = loc.index.map(lambda x: int(x.split('_')[1]))
+        for pname in pst.adj_par_names:
+            cstr = pname.split('_')[1]
+            cint = int(cstr)
+            # strt states can comm with all obs locs
+            if "strt" in pname:
+                dist = (ocells - cint).map(np.abs)
+                loc_vals = 1 / (dist + 0.01)
+                loc_vals = loc_vals.values
+                loc_vals[loc_vals>1.0] = 1.0
+                loc.loc[:,pname] = loc_vals
+            # static pars can only comm with obs in the same cell
+            else:
+
+                oname = [o for o in pst.nnz_obs_names if cstr in o.split('_')[1] == cstr][0]
+                loc.loc[oname, pname] = 1.0
+        return loc
+
+    loc = get_loc(pst)
+    pyemu.Matrix.from_dataframe(loc).to_ascii(os.path.join(t_d,"loc.mat"))
+
+    cycles = np.arange(0,5)
+    odf = pd.DataFrame(index=cycles,columns=pst.nnz_obs_names)
+    odf.loc[:,:] = obs.loc[pst.nnz_obs_names,"obsval"].values
+    odf.T.to_csv(os.path.join(t_d,"obs_cycle_tbl.csv"))
+    wdf = pd.DataFrame(index=cycles,columns=pst.nnz_obs_names)
+    wdf.loc[:,:] = 0.0
+    wdf.iloc[1,[3,5]] = 1.0
+    wdf.iloc[3,:] = 1.0
+    wdf.T.to_csv(os.path.join(t_d,"weight_cycle_tbl.csv"))
+
+    pst.pestpp_options["lambda_scale_fac"] = 1.0
+    pst.pestpp_options["ies_lambda_mults"] = 1.0
+    pst.pestpp_options["da_use_mda"] = True
+    pst.pestpp_options["da_observation_cycle_table"] = "obs_cycle_tbl.csv"
+    pst.pestpp_options["da_weight_cycle_table"] = "weight_cycle_tbl.csv"
+    pst.pestpp_options["ies_num_reals"] = 10
+
+    pst.write(os.path.join(t_d,"pest_seq.pst"),version=2)
+    pyemu.os_utils.start_workers(t_d, exe_path.replace("ies", "da"), "pest_seq.pst",
+                                num_workers=pst.pestpp_options["ies_num_reals"], worker_root=test_d, port=port,
+                                master_dir=os.path.join(test_d, "master_da_fixed"), verbose=True)
+
+
+
 if __name__ == "__main__":
     
     
     shutil.copy2(os.path.join("..","exe","windows","x64","Debug","pestpp-da.exe"),os.path.join("..","bin","pestpp-da.exe"))
     #da_mf6_freyberg_test_1()
     #da_mf6_freyberg_test_2()
-    da_mf6_freyberg_smoother_test()
+    #da_mf6_freyberg_smoother_test()
     #da_prep_4_mf6_freyberg_seq_tbl()
     #da_build_mf6_freyberg_seq_localizer_tbl()
     #da_build_mf6_freyberg_seq_localizer()
     #da_prep_4_mf6_freyberg_seq(sync_state_names=False)
     #da_mf6_freyberg_test_3()
     #seq_10par_xsec_state_est_test()
+    seq_10par_xsec_fixed_test()
+

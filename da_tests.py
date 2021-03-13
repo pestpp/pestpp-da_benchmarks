@@ -447,10 +447,15 @@ def da_mf6_freyberg_smoother_test():
         shutil.rmtree(m_d)
     pst = pyemu.Pst(os.path.join(t_d,"freyberg6_run_ies.pst"))
     pst.control_data.noptmax = 0
-    pst.pestpp_options["ies_autoadaloc"] = False
-    pst.pestpp_options.pop("ies_localizer",None)
+    pst.pestpp_options["da_autoadaloc"] = False
+    pst.pestpp_options.pop("da_localizer",None)
     pst.pestpp_options["da_num_reals"] = 15
     pst.pestpp_options["da_use_mda"] = False
+    new_dict = {}
+    for key,val in pst.pestpp_options.items():
+        new_dict[key.replace("ies","da")] = val
+    pst.pestpp_options = new_dict
+
     pst.write(os.path.join(t_d,"freyberg6_run_da.pst"))
     pyemu.os_utils.run("{0} freyberg6_run_da.pst".format(exe_path.replace("-ies","-da")),cwd=t_d)
     
@@ -797,10 +802,10 @@ if __name__ == "__main__":
     shutil.copy2(os.path.join("..","exe","windows","x64","Debug","pestpp-da.exe"),os.path.join("..","bin","pestpp-da.exe"))
     #da_mf6_freyberg_test_1()
     #da_mf6_freyberg_test_2()
-    #da_mf6_freyberg_smoother_test()
+    da_mf6_freyberg_smoother_test()
     #da_prep_4_mf6_freyberg_seq_tbl()
     #da_build_mf6_freyberg_seq_localizer_tbl()
     #da_build_mf6_freyberg_seq_localizer()
     #da_prep_4_mf6_freyberg_seq(sync_state_names=False)
     #da_mf6_freyberg_test_3()
-    seq_10par_xsec_state_est_test()
+    #seq_10par_xsec_state_est_test()

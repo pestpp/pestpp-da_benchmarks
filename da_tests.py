@@ -805,7 +805,7 @@ def seq_10par_xsec_fixed_test():
     par.loc[:,"cycle"] = -1
     
     par.loc[par.parnme.str.contains("strt"),"partrans"] = "log"
-    par.loc["strt_01","partrans"] = "fixed"
+    par.loc[["strt_02","strt_03"],"partrans"] = "fixed"
     strt_pars = par.loc[par.pargp=="strt","parnme"].tolist()
     obs = pst.observation_data
     obs.loc[obs.obsnme.str.startswith("h01"),"weight"] = 1.0

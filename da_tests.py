@@ -843,7 +843,8 @@ def seq_10par_xsec_fixed_test():
     loc = get_loc(pst)
     pyemu.Matrix.from_dataframe(loc).to_ascii(os.path.join(t_d,"loc.mat"))
 
-    cycles = np.arange(0,5)
+    mx_cycle = 5
+    cycles = np.arange(0,mx_cycle)
     odf = pd.DataFrame(index=cycles,columns=pst.nnz_obs_names)
     odf.loc[:,:] = obs.loc[pst.nnz_obs_names,"obsval"].values
     odf.T.to_csv(os.path.join(t_d,"obs_cycle_tbl.csv"))
@@ -854,17 +855,45 @@ def seq_10par_xsec_fixed_test():
     wdf.T.to_csv(os.path.join(t_d,"weight_cycle_tbl.csv"))
 
     pst.pestpp_options["lambda_scale_fac"] = 1.0
-    pst.pestpp_options["ies_lambda_mults"] = 1.0
+    pst.pestpp_options["da_lambda_mults"] = 1.0
     pst.pestpp_options["da_use_mda"] = True
     pst.pestpp_options["da_observation_cycle_table"] = "obs_cycle_tbl.csv"
     pst.pestpp_options["da_weight_cycle_table"] = "weight_cycle_tbl.csv"
-    pst.pestpp_options["ies_num_reals"] = 10
+    pst.pestpp_options["da_num_reals"] = 10
+    pst.pestpp_options["da_localizer"] = "loc.mat"
 
     pst.write(os.path.join(t_d,"pest_seq.pst"),version=2)
+    m_d = os.path.join(test_d, "master_da_fixed")
     pyemu.os_utils.start_workers(t_d, exe_path.replace("ies", "da"), "pest_seq.pst",
-                                num_workers=pst.pestpp_options["ies_num_reals"], worker_root=test_d, port=port,
-                                master_dir=os.path.join(test_d, "master_da_fixed"), verbose=True)
+                                num_workers=pst.pestpp_options["da_num_reals"], worker_root=test_d, port=port,
+                                master_dir=m_d, verbose=True)
 
+    pr_pe = pd.read_csv(os.path.join(m_d,"pest_seq.global.prior.pe.csv"),index_col=0)
+
+    for cycle in cycles[1:]:
+        oe = pd.read_csv(os.path.join(m_d,"pest_seq.global.{0}.oe.csv".format(cycle-1)),index_col=0)
+        pe = pd.read_csv(os.path.join(m_d,"pest_seq.{0}.0.par.csv".format(cycle)),index_col=0)
+        #check that that adj dyn states are being updated and used...
+        d = np.abs(oe.loc[:,"h01_02"].values - pe.loc[:,"strt_02"].values)
+        print(d)
+        assert d.max() < 1.0e-6,d.max()
+        d = np.abs(oe.loc[:, "h01_03"].values - pe.loc[:, "strt_03"].values)
+        print(d)
+        assert d.max() < 1.0e-6, d.max()
+        # check that the fixed par (non state) is not being adjusted
+        d =  np.abs(pr_pe.loc[:,"cnhd_01"].values - pe.loc[:, "cnhd_01"].values)
+        print(d)
+        assert d.max() < 1.0e-6, d.max()
+
+    # check that the static pars are being localized before cycle 3 (as per weight table)
+    # only static pars in cells 4 and 6 should be allowed to change in cycle 1
+    pe_cycle2 = pd.read_csv(os.path.join(m_d,"pest_seq.global.2.pe.csv"),index_col=0)
+    fpar_names = par.loc[par.parnme.apply(lambda x: "strt" not in x and "_04"  not in x and "_06" not in x),"parnme"]
+
+    d = (pe_cycle2.loc[:,fpar_names] - pr_pe.loc[:,fpar_names]).apply(np.abs)
+    print(d)
+    print(d.max())
+    print(d.max().max())
 
 
 if __name__ == "__main__":

@@ -894,6 +894,7 @@ def seq_10par_xsec_fixed_test():
     print(d)
     print(d.max())
     print(d.max().max())
+    assert d.max().max() < 1.0e-6
 
 
 if __name__ == "__main__":

@@ -869,10 +869,14 @@ def seq_10par_xsec_fixed_test():
                                 master_dir=m_d, verbose=True)
 
     pr_pe = pd.read_csv(os.path.join(m_d,"pest_seq.global.prior.pe.csv"),index_col=0)
-
+    print("testing")
     for cycle in cycles[1:]:
         oe = pd.read_csv(os.path.join(m_d,"pest_seq.global.{0}.oe.csv".format(cycle-1)),index_col=0)
         pe = pd.read_csv(os.path.join(m_d,"pest_seq.{0}.0.par.csv".format(cycle)),index_col=0)
+        print(os.path.join(m_d,"pest_seq.global.{0}.oe.csv".format(cycle-1)))
+        print(os.path.join(m_d, "pest_seq.{0}.0.par.csv".format(cycle)))
+        print(oe)
+        print(pe)
         #check that that adj dyn states are being updated and used...
         d = np.abs(oe.loc[:,"h01_02"].values - pe.loc[:,"strt_02"].values)
         print(d)

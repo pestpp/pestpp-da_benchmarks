@@ -922,7 +922,7 @@ def seq_10par_diff_obspar_cycle_test():
     print(out_files)
 
     pst = pyemu.Pst.from_io_files(tpl_files,in_files,ins_files,out_files,pst_path=".")
-    pst.model_command = "mfnwt 10par_sec.nam"
+    pst.model_command = "mfnwt 10par_xsec.nam"
     out = pst.model_output_data
     out.loc[out.pest_file.str.contains("cycle"),"cycle"] = out.loc[out.pest_file.str.contains("cycle"),"pest_file"].apply(lambda x: int(x.split('.')[-2].split('_')[-1]))
     print(out)
@@ -943,9 +943,8 @@ def seq_10par_diff_obspar_cycle_test():
     print(obs)
 
     pst.control_data.noptmax = 0
-    
-
-
+    pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
+    pyemu.os_utils.run("{0} pest_seq.pst".format(exe_path), cwd=t_d)
 
 
 if __name__ == "__main__":

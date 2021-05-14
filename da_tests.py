@@ -901,10 +901,58 @@ def seq_10par_xsec_fixed_test():
     assert d.max().max() < 1.0e-6
 
 
+def seq_10par_diff_obspar_cycle_test():
+    test_d = "10par_xsec"
+    t_d = os.path.join(test_d, "template_diff_parobs")
+    tpl_files = [f for f in os.listdir(t_d) if f.lower().endswith(".tpl")]
+    in_files = [f.replace(".tpl","") if "cycle" not in f else ".".join([x for x in f.split(".")[:-1] if "cycle" not in x]) for f in tpl_files]
+
+    ins_files = [f for f in os.listdir(t_d) if f.lower().endswith(".ins")]
+    out_files = [f.replace(".ins","") if "cycle" not in f else ".".join([x for x in f.split(".")[:-1] if "cycle" not in x]) for f in ins_files]
+
+
+    tpl_files = [os.path.join(t_d,x) for x in tpl_files]
+    in_files = [os.path.join(t_d, x) for x in in_files]
+    ins_files = [os.path.join(t_d, x) for x in ins_files]
+    out_files = [os.path.join(t_d, x) for x in out_files]
+
+    print(tpl_files)
+    print(in_files)
+    print(ins_files)
+    print(out_files)
+
+    pst = pyemu.Pst.from_io_files(tpl_files,in_files,ins_files,out_files,pst_path=".")
+    pst.model_command = "mfnwt 10par_sec.nam"
+    out = pst.model_output_data
+    out.loc[out.pest_file.str.contains("cycle"),"cycle"] = out.loc[out.pest_file.str.contains("cycle"),"pest_file"].apply(lambda x: int(x.split('.')[-2].split('_')[-1]))
+    print(out)
+
+    out = pst.model_input_data
+    out.loc[:,"cycle"] = -1
+    out.loc[out.pest_file.str.contains("cycle"), "cycle"] = out.loc[
+        out.pest_file.str.contains("cycle"), "pest_file"].apply(lambda x: int(x.split('.')[-2].split('_')[-1]))
+    print(out)
+
+    par = pst.parameter_data
+    par.loc[:,"cycle"] = -1
+    par.loc[par.parnme.str.startswith("cnhd"),"cycle"] = par.loc[par.parnme.str.startswith("cnhd"),"parnme"].apply(lambda x: int(x.split('_')[-1]))
+    print(par)
+
+    obs = pst.observation_data
+    obs.loc[:,"cycle"] = obs.obsnme.apply(lambda x: int(x.split('_')[-1]))
+    print(obs)
+
+    pst.control_data.noptmax = 0
+    
+
+
+
+
 if __name__ == "__main__":
     
     
     shutil.copy2(os.path.join("..","exe","windows","x64","Debug","pestpp-da.exe"),os.path.join("..","bin","pestpp-da.exe"))
+    seq_10par_diff_obspar_cycle_test()
     #da_mf6_freyberg_test_1()
     #da_mf6_freyberg_test_2()
     #da_mf6_freyberg_smoother_test()
@@ -914,5 +962,5 @@ if __name__ == "__main__":
     #da_prep_4_mf6_freyberg_seq(sync_state_names=False)
     #da_mf6_freyberg_test_3()
     #seq_10par_xsec_state_est_test()
-    seq_10par_xsec_fixed_test()
+    #seq_10par_xsec_fixed_test()
 

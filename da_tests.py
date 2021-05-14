@@ -934,17 +934,93 @@ def seq_10par_diff_obspar_cycle_test():
     print(out)
 
     par = pst.parameter_data
+    par.loc[par.parnme.str.contains("ss"),"parval1"] = 1.0e-5
+    par.loc[:,"parubnd"] = par.parval1 * 1.5
+    par.loc[:, "parlbnd"] = par.parval1 * 0.5
+
     par.loc[:,"cycle"] = -1
     par.loc[par.parnme.str.startswith("cnhd"),"cycle"] = par.loc[par.parnme.str.startswith("cnhd"),"parnme"].apply(lambda x: int(x.split('_')[-1]))
     print(par)
 
     obs = pst.observation_data
     obs.loc[:,"cycle"] = obs.obsnme.apply(lambda x: int(x.split('_')[-1]))
-    print(obs)
 
+    obs.loc[:,"state_par_link"] = ""
+    obs.loc[:,"cellid"] = obs.obsnme.apply(lambda x: int(x.split('_')[1]))
+    obs.loc[:, "kper"] = obs.obsnme.apply(lambda x: int(x.split('_')[0][1:]))
+    spar = par.loc[par.parnme.str.contains("str"),:].copy()
+    spar.loc[:,"cellid"] = spar.parnme.apply(lambda x: int(x.split('_')[-1]))
+    sobs = obs.loc[obs.kper==1,:]
+    sobs = sobs.loc[sobs.cellid != 1,:]
+    print(sobs.cellid)
+    print(spar.cellid)
+    obs.loc[sobs.obsnme,"state_par_link"] = sobs.cellid.apply(lambda x: spar.loc[spar.cellid==x,"parnme"].values[0])
+    print(obs)
     pst.control_data.noptmax = 0
     pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
-    pyemu.os_utils.run("{0} pest_seq.pst".format(exe_path), cwd=t_d)
+    t_d1 = t_d.replace("template","test1")
+    if os.path.exists(t_d1):
+        shutil.rmtree(t_d1)
+    shutil.copytree(t_d,t_d1)
+    pyemu.os_utils.run("{0} pest_seq.pst".format(exe_path), cwd=t_d1)
+
+    c0_pe = pd.read_csv(os.path.join(t_d1,"pest_seq.global.0.pe.csv"),index_col=0)
+    d = np.abs(spar.loc[:,"parval1"].values - c0_pe.loc[c0_pe.index[0],spar.parnme].values)
+    print(d)
+    print(d.sum())
+    assert d.sum() == 0
+
+    c1_pe = pd.read_csv(os.path.join(t_d1,"pest_seq.global.1.pe.csv"),index_col=0)
+    res = pyemu.pst_utils.read_resfile(os.path.join(t_d1,"pest_seq.0.base.rei"))
+    sres = res.loc[sobs.loc[obs.cycle==0,"obsnme"],:]
+    sres = sres.loc[obs.loc[sres.index,"state_par_link"].apply(lambda x: len(x) > 0),:]
+    smod = sres.modelled.copy()
+    smod.index = smod.index.map(lambda x: obs.loc[x,"state_par_link"])
+    print(smod)
+    d = np.abs(smod.values - c1_pe.loc[:,smod.index].values)
+    print(d)
+    print(d.sum())
+    assert d.sum() == 0
+
+    pst.control_data.noptmax = -1
+    pst.pestpp_options["da_num_reals"] = 10
+    pst.pestpp_options["da_lambda_mults"] = [0.1,1.0]
+    pst.pestpp_options["lambda_scale_fac"] = 1.0
+    pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
+    m_d1 = t_d.replace("template", "master1")
+    if os.path.exists(m_d1):
+        shutil.rmtree(m_d1)
+    pyemu.os_utils.start_workers(t_d,exe_path,"pest_seq.pst",5,worker_root=test_d,
+                                 master_dir=m_d1)
+    c0_pe = pd.read_csv(os.path.join(t_d1, "pest_seq.global.0.pe.csv"), index_col=0)
+    d = np.abs(spar.loc[:, "parval1"].values - c0_pe.loc["base", spar.parnme].values)
+    print(d)
+    print(d.sum())
+    assert d.sum() == 0
+
+    c1_pe = pd.read_csv(os.path.join(t_d1, "pest_seq.global.1.pe.csv"), index_col=0)
+    res = pyemu.pst_utils.read_resfile(os.path.join(t_d1, "pest_seq.0.base.rei"))
+    sres = res.loc[sobs.loc[obs.cycle == 0, "obsnme"], :]
+    sres = sres.loc[obs.loc[sres.index, "state_par_link"].apply(lambda x: len(x) > 0), :]
+    smod = sres.modelled.copy()
+    smod.index = smod.index.map(lambda x: obs.loc[x, "state_par_link"])
+    print(smod)
+    d = np.abs(smod.values - c1_pe.loc["base", smod.index].values)
+    print(d)
+    print(d.sum())
+    assert d.sum() == 0
+
+    c1_oe = pd.read_csv(os.path.join(t_d1, "pest_seq.global.1.oe.csv"), index_col=0)
+    d = (c1_pe.loc[:,"cnhd_01_01"] - c1_oe.loc[:,"h01_01_01"]).apply(np.abs)
+    print(d)
+    print(d.max())
+    assert d.max() == 0
+    d = (c1_pe.loc[:, "cnhd_01_00"] - c1_oe.loc[:, "h01_01_00"]).apply(np.abs)
+    print(d)
+    print(d.max())
+    assert d.max() == 0
+
+
 
 
 if __name__ == "__main__":

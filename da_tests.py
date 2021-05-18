@@ -1020,6 +1020,130 @@ def seq_10par_diff_obspar_cycle_test():
     print(d.max())
     assert d.max() == 0
 
+def seq_10par_xsec_hotstart_test():
+    
+    test_d = "10par_xsec"
+    t_d = os.path.join(test_d, "template")
+    pst = pyemu.Pst(os.path.join(t_d,"pest.pst"))
+    par = pst.parameter_data
+    par.loc[:,"cycle"] = -1
+    
+    par.loc[par.parnme.str.contains("strt"),"partrans"] = "log"
+    par.loc[["cnhd_01","strt_02","strt_03"],"partrans"] = "fixed"
+    strt_pars = par.loc[par.pargp=="strt","parnme"].tolist()
+    obs = pst.observation_data
+    obs.loc[obs.obsnme.str.startswith("h01"),"weight"] = 1.0
+    obs.loc[:,"state_par_link"] = ""
+    obs.loc[obs.obgnme=="head1","state_par_link"] = strt_pars
+    obs.loc[:,"cycle"] = -1
+    
+    pst.control_data.noptmax = 1
+
+    pst.model_input_data.loc[:,"cycle"] = -1
+    pst.model_output_data.loc[:,"cycle"] = -1
+
+    def get_loc(pst):
+
+        loc = pd.DataFrame(index=pst.nnz_obs_names,columns=pst.adj_par_names)
+        loc.loc[:,:] = 0.0
+        ocells = loc.index.map(lambda x: int(x.split('_')[1]))
+        for pname in pst.adj_par_names:
+            cstr = pname.split('_')[1]
+            cint = int(cstr)
+            # strt states can comm with all obs locs
+            if "strt" in pname:
+                dist = (ocells - cint).map(np.abs)
+                loc_vals = 1 / (dist + 0.01)
+                loc_vals = loc_vals.values
+                loc_vals[loc_vals>1.0] = 1.0
+                loc.loc[:,pname] = loc_vals
+            # static pars can only comm with obs in the same cell
+            else:
+
+                oname = [o for o in pst.nnz_obs_names if cstr in o.split('_')[1] == cstr][0]
+                loc.loc[oname, pname] = 1.0
+        return loc
+
+    loc = get_loc(pst)
+    pyemu.Matrix.from_dataframe(loc).to_ascii(os.path.join(t_d,"loc.mat"))
+
+    mx_cycle = 5
+    cycles = np.arange(0,mx_cycle)
+    odf = pd.DataFrame(index=cycles,columns=pst.nnz_obs_names)
+    odf.loc[:,:] = obs.loc[pst.nnz_obs_names,"obsval"].values
+    odf.T.to_csv(os.path.join(t_d,"obs_cycle_tbl.csv"))
+    wdf = pd.DataFrame(index=cycles,columns=pst.nnz_obs_names)
+    wdf.loc[:,:] = 0.0
+    wdf.iloc[4,:] = 1.0
+    wdf.T.to_csv(os.path.join(t_d,"weight_cycle_tbl.csv"))
+
+    pst.pestpp_options["lambda_scale_fac"] = 1.0
+    pst.pestpp_options["da_lambda_mults"] = 1.0
+    pst.pestpp_options["da_use_mda"] = True
+    pst.pestpp_options["da_observation_cycle_table"] = "obs_cycle_tbl.csv"
+    pst.pestpp_options["da_weight_cycle_table"] = "weight_cycle_tbl.csv"
+    pst.pestpp_options["da_num_reals"] = 10
+    pst.pestpp_options["da_localizer"] = "loc.mat"
+    pst.pestpp_options["da_hotstart_cycle"] = 3
+    pst.pestpp_options["da_subset_how"] = "first"
+
+    pst.write(os.path.join(t_d,"pest_seq.pst"),version=2)
+    m_d = os.path.join(test_d, "master_da_hotstart_base")
+    pyemu.os_utils.start_workers(t_d, exe_path.replace("ies", "da"), "pest_seq.pst",
+                                num_workers=pst.pestpp_options["da_num_reals"], worker_root=test_d, port=port,
+                                master_dir=m_d, verbose=True)
+
+    pr_pe = pd.read_csv(os.path.join(m_d,"pest_seq.global.prior.pe.csv"),index_col=0)
+    print("testing")
+    for cycle in cycles[pst.pestpp_options["da_hotstart_cycle"]+1:]:
+        oe = pd.read_csv(os.path.join(m_d,"pest_seq.global.{0}.oe.csv".format(cycle-1)),index_col=0)
+        pe = pd.read_csv(os.path.join(m_d,"pest_seq.{0}.0.par.csv".format(cycle)),index_col=0)
+        print(os.path.join(m_d,"pest_seq.global.{0}.oe.csv".format(cycle-1)))
+        print(os.path.join(m_d, "pest_seq.{0}.0.par.csv".format(cycle)))
+        print(oe)
+        print(pe)
+        #check that that adj dyn states are being updated and used...
+        d = np.abs(oe.loc[:,"h01_02"].values - pe.loc[:,"strt_02"].values)
+        print(d)
+        assert d.max() < 1.0e-6,d.max()
+        d = np.abs(oe.loc[:, "h01_03"].values - pe.loc[:, "strt_03"].values)
+        print(d)
+        assert d.max() < 1.0e-6, d.max()
+        # check that the fixed par (non state) is not being adjusted
+        d =  np.abs(pr_pe.loc[:,"cnhd_01"].values - pe.loc[:, "cnhd_01"].values)
+        print(d)
+        assert d.max() < 1.0e-6, d.max()
+
+
+    pe_cycle2 = pd.read_csv(os.path.join(m_d,"pest_seq.global.3.pe.csv"),index_col=0)
+    fpar_names = par.loc[par.parnme.apply(lambda x: "strt" not in x),"parnme"]
+
+    d = (pe_cycle2.loc[:,fpar_names] - pr_pe.loc[:,fpar_names]).apply(np.abs)
+    print(d)
+    print(d.max())
+    print(d.max().max())
+    assert d.max().max() < 1.0e-6
+    phi1 = pd.read_csv(os.path.join(m_d, "pest_seq.global.phi.actual.csv"))
+
+    pe_file = os.path.join(m_d,"pest_seq.global.3.pe.csv")
+    shutil.copy2(pe_file,os.path.join(t_d,"hs_pe.csv"))
+    shutil.copy2(pe_file.replace(".pe.",".oe."),os.path.join(t_d,"hs_oe.csv"))
+    shutil.copy2(os.path.join(m_d,"pest_seq.3.obs+noise.csv"),os.path.join(t_d,"hs_noise.csv"));
+    pst.pestpp_options["da_par_en"] = "hs_pe.csv"
+    pst.pestpp_options["da_restart_obs_en"] = "hs_oe.csv"
+    pst.pestpp_options["da_obs_en"] = "hs_noise.csv"
+
+    pst.write(os.path.join(t_d,"pest_seq.pst"),version=2)
+    m_d = os.path.join(test_d, "master_da_hotstart_restart")
+    pyemu.os_utils.start_workers(t_d, exe_path.replace("ies", "da"), "pest_seq.pst",
+                                num_workers=pst.pestpp_options["da_num_reals"], worker_root=test_d, port=port,
+                                master_dir=m_d, verbose=True)
+
+    phi2 = pd.read_csv(os.path.join(m_d,"pest_seq.global.phi.actual.csv"))
+    d = (phi1-phi2).apply(np.abs)
+    print(d.max())
+    print(d.max().max())
+    assert d.max().max() < 0.001
 
 
 
@@ -1027,7 +1151,8 @@ if __name__ == "__main__":
     
     
     shutil.copy2(os.path.join("..","exe","windows","x64","Debug","pestpp-da.exe"),os.path.join("..","bin","pestpp-da.exe"))
-    seq_10par_diff_obspar_cycle_test()
+    seq_10par_xsec_hotstart_test()
+    #seq_10par_diff_obspar_cycle_test()
     #da_mf6_freyberg_test_1()
     #da_mf6_freyberg_test_2()
     #da_mf6_freyberg_smoother_test()

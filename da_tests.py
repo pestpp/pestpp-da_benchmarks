@@ -1151,20 +1151,42 @@ def seq_10par_cycle_parse_test():
     test_d = "10par_xsec"
     t_d = os.path.join(test_d, "template")
     pst = pyemu.Pst(os.path.join(t_d,"pest.pst"))
-    tpl_file = os.path.join(t_d,"once_and_a_while.dat.tpl")
+    
+    tpl_file = os.path.join(t_d,"every_other_cycle.dat.tpl")
     with open(tpl_file,'w') as f:
     	f.write("ptf ~\n")
     	f.write("every_other_cycle  ~  every_other_cycle  ~\n")
     pst.add_parameters(tpl_file,pst_path=".")
     par = pst.parameter_data
+    
+
+    tpl_file = os.path.join(t_d,"once_and_a_while.dat.tpl")
+    with open(tpl_file,'w') as f:
+        f.write("ptf ~\n")
+        f.write("every_other_cycle  ~  once_and_a_while  ~\n")
+    pst.add_parameters(tpl_file,pst_path=".")
+
+    df = pst.add_parameters(os.path.join(t_d,"hk_Layer_1_even.ref.tpl"),os.path.join(t_d,"hk_Layer_1.ref"),pst_path=".")
+    
+    par = pst.parameter_data
     par.loc[:,"cycle"] = -1
-    par.loc["every_other_cycle","cycle"] = "1:-1:2"
+    par.loc[par.parnme.str.startswith("k_"),"cycle"] = "1:8:2"
+    par.loc[df.parnme,"cycle"] = "::2"
+    par.loc[df.parnme,"parval1"] = 2.5
+    par.loc[df.parnme,"parlbnd"] = .25
+    par.loc[df.parnme,"parubnd"] = 25.
+
+    par.loc["every_other_cycle","cycle"] = "001:005:002"
     par.loc["every_other_cycle","parval1"] = 1.0
     par.loc["every_other_cycle","parubnd"] = 10
     par.loc["every_other_cycle","parlbnd"] = 0.1
+
+    par.loc["once_and_a_while","cycle"] = "003::004"
+    par.loc["once_and_a_while","parval1"] = 1.0
+    par.loc["once_and_a_while","parubnd"] = 10
+    par.loc["once_and_a_while","parlbnd"] = 0.1
  	
-    
-	    
+
     par.loc[par.parnme.str.contains("strt"),"partrans"] = "log"
     par.loc[["cnhd_01","strt_02","strt_03"],"partrans"] = "fixed"
     strt_pars = par.loc[par.pargp=="strt","parnme"].tolist()
@@ -1187,7 +1209,7 @@ def seq_10par_cycle_parse_test():
         loc.loc[:,:] = 0.0
         ocells = loc.index.map(lambda x: int(x.split('_')[1]))
         for pname in pst.adj_par_names:
-            if pname == "every_other_cycle":
+            if pname in ["every_other_cycle","once_and_a_while"]:
                 loc.loc[:,pname] = 0.0
                 continue
             cstr = pname.split('_')[1]
@@ -1225,7 +1247,7 @@ def seq_10par_cycle_parse_test():
     pst.pestpp_options["da_use_mda"] = True
     pst.pestpp_options["da_observation_cycle_table"] = "obs_cycle_tbl.csv"
     pst.pestpp_options["da_weight_cycle_table"] = "weight_cycle_tbl.csv"
-    pst.pestpp_options["da_num_reals"] = 10
+    pst.pestpp_options["da_num_reals"] = 5
     pst.pestpp_options["da_localizer"] = "loc.mat"
 
     pst.write(os.path.join(t_d,"pest_seq.pst"),version=2)
@@ -1237,11 +1259,11 @@ if __name__ == "__main__":
     
     
     #shutil.copy2(os.path.join("..","exe","windows","x64","Debug","pestpp-da.exe"),os.path.join("..","bin","pestpp-da.exe"))
-    #seq_10par_cycle_parse_test()
+    seq_10par_cycle_parse_test()
     #seq_10par_xsec_hotstart_test()
     #seq_10par_diff_obspar_cycle_test()
-    da_mf6_freyberg_test_1()
-    da_mf6_freyberg_test_2()
+    #da_mf6_freyberg_test_1()
+    #da_mf6_freyberg_test_2()
     #da_mf6_freyberg_smoother_test()
     #da_prep_4_mf6_freyberg_seq_tbl()
     #da_build_mf6_freyberg_seq_localizer_tbl()

@@ -1200,7 +1200,11 @@ def seq_10par_cycle_parse_test():
 
     mid = pst.model_input_data
     mid.loc[:,"cycle"] = -1
-    mid.loc[mid.model_file.str.startswith("once"),"cycle"] = par.loc["every_other_cycle","cycle"]
+    mid.loc[mid.model_file.str.contains("every"),"cycle"] = par.loc["every_other_cycle","cycle"]
+    mid.loc[mid.model_file.str.contains("once"),"cycle"] = par.loc["once_and_a_while","cycle"]
+    mid.loc[mid.pest_file.str.contains("_even"),"cycle"] = par.loc[df.parnme,"cycle"].values[0]
+    mid.loc[mid.pest_file.str.contains("hk_Layer_1.ref"),"cycle"] = par.loc[par.parnme.str.startswith("k_"),"cycle"].values[0]
+ 
     pst.model_output_data.loc[:,"cycle"] = -1
 
     def get_loc(pst):

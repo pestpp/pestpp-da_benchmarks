@@ -1196,7 +1196,7 @@ def seq_10par_cycle_parse_test():
     obs.loc[obs.obgnme=="head1","state_par_link"] = strt_pars
     obs.loc[:,"cycle"] = -1
     
-    pst.control_data.noptmax = 1
+    pst.control_data.noptmax = 3
 
     mid = pst.model_input_data
     mid.loc[:,"cycle"] = -1
@@ -1251,12 +1251,14 @@ def seq_10par_cycle_parse_test():
     pst.pestpp_options["da_use_mda"] = True
     pst.pestpp_options["da_observation_cycle_table"] = "obs_cycle_tbl.csv"
     pst.pestpp_options["da_weight_cycle_table"] = "weight_cycle_tbl.csv"
-    pst.pestpp_options["da_num_reals"] = 5
+    pst.pestpp_options["da_num_reals"] = 10
     pst.pestpp_options["da_localizer"] = "loc.mat"
 
     pst.write(os.path.join(t_d,"pest_seq.pst"),version=2)
     m_d = os.path.join(test_d, "master_da_cycle_parse")
-
+    pyemu.os_utils.start_workers(t_d, exe_path.replace("ies", "da"), "pest_seq.pst",
+                                num_workers=pst.pestpp_options["da_num_reals"], worker_root=test_d, port=port,
+                                master_dir=m_d, verbose=True)
 
 
 if __name__ == "__main__":

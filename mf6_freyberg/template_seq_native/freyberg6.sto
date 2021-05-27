@@ -17,10 +17,5 @@ BEGIN GRIDDATA
 END GRIDDATA
 
 BEGIN Period  1
-  STEADY-STATE
-END Period  1
-
-BEGIN Period  2
   TRANSIENT
-END Period  2
-
+END Period  1

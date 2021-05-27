@@ -1,26 +1,29 @@
 time,elapsed_seconds,message
-17:08:04,7.87e-05,PEST++ performance logger started
-17:08:04,0.0018031,starting to process control file
-17:08:07,2.95581,finished processing control file
-17:08:07,0.0988851,starting basic model IO error checking
-17:08:08,0.488913,finished basic model IO error checking
-17:08:08,0.169893,initializing parcov
-17:08:08,0.296096,parcov loaded  from parameter bounds, using par_sigma_range 4
-17:08:09,0.349453,processing par csv ies_prior.jcb
-17:08:09,0.0001399,loading par ensemble from binary file ies_prior.jcb
-17:08:14,5.01382,loading localizer matrix from file temporal_loc.jcb
-17:08:14,0.0248102,processing localizer matrix
-17:08:16,1.85853,instantiating child pest object
-17:08:16,0.426656,starting basic model IO error checking
-17:08:16,0.468449,finished basic model IO error checking
-17:08:17,0.489984,instantiating DA instance
-17:08:17,0.201719,instantiating cycle parameter ensemble instance
-17:08:17,0.276158,initializing
-17:08:18,0.0559181,'noptmax'=0, running control file parameter values and quitting
-17:08:18,0.320922,running control file parameter values
-17:08:18,8.58e-05,queuing 1 runs
-17:08:18,0.258795,making runs
-17:08:21,2.75918,processing runs
-17:08:21,0.134044,saving results from control file parameter value run to  freyberg6_run_da.obs.csv
-17:08:21,0.117124,control file parameter phi report:
-17:08:22,0.679282,updating global ensemble with cycle ensemble columns
+2021-05-27 10:12:50,3.9e-05,PEST++ performance logger started
+2021-05-27 10:12:50,0.000654,starting to process control file
+2021-05-27 10:12:51,0.412709,finished processing control file
+2021-05-27 10:13:00,8.853,starting basic model IO error checking
+2021-05-27 10:13:00,0.074319,finished basic model IO error checking
+2021-05-27 10:13:00,0.005009,initializing prior parameter covariance matrix
+2021-05-27 10:13:00,2.2e-05,initializing parcov
+2021-05-27 10:13:00,0.038075,parcov loaded  from parameter bounds, using par_sigma_range 4
+2021-05-27 10:13:00,0.054886,processing par csv ies_prior.jcb
+2021-05-27 10:13:00,7.9e-05,loading par ensemble from binary file ies_prior.jcb
+2021-05-27 10:13:00,0.317193,ies_num_reals arg passed, truncated parameter ensemble to  15
+2021-05-27 10:13:00,0.179818,loading localizer matrix from file temporal_loc.jcb
+2021-05-27 10:13:00,0.004401,processing localizer matrix
+2021-05-27 10:13:00,0.286608,instantiating child pest object
+2021-05-27 10:13:01,0.039905,starting basic model IO error checking
+2021-05-27 10:13:01,0.067239,finished basic model IO error checking
+2021-05-27 10:13:01,0.096959,instantiating DA instance
+2021-05-27 10:13:01,0.032255,instantiating cycle parameter ensemble instance
+2021-05-27 10:13:01,0.106581,initializing
+2021-05-27 10:13:01,0.004359,'noptmax'=0, running current cycle base parameter values
+2021-05-27 10:13:01,0.020684,saving control file parameter ensemble to  freyberg6_run_da.0.BASE..par.csv
+2021-05-27 10:13:01,0.072748,running control file parameter values
+2021-05-27 10:13:01,2.5e-05,queuing 1 runs
+2021-05-27 10:13:01,0.077658,making runs
+2021-05-27 10:13:02,1.23861,processing runs
+2021-05-27 10:13:02,0.031544,saving results from control file parameter value run to  freyberg6_run_da.0.BASE..obs.csv
+2021-05-27 10:13:02,0.01634,control file parameter phi report:
+2021-05-27 10:13:02,0.089789,updating global ensemble with cycle ensemble columns

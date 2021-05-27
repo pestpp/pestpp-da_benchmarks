@@ -1261,11 +1261,119 @@ def seq_10par_cycle_parse_test():
                                 master_dir=m_d, verbose=True)
 
 
+def compare_mf6_freyberg():
+
+
+    def mod_tdis_sto(org_t_d,t_d):
+        tdis_file = "freyberg6.tdis"
+        lines = open(os.path.join(org_t_d,tdis_file),'r').readlines()
+
+        with open(os.path.join(t_d,tdis_file),'w') as f:
+            iline = 0
+            while True:
+                line = lines[iline]
+                if "begin period" in line.lower():
+                    lines[iline+1] = "100000  1   1.0\n"
+                    print(lines[iline+1])
+                print(line)
+                f.write(line)
+                iline += 1
+                if iline >= len(lines):
+                    break
+        sto_file = "freyberg6.sto"
+        lines = open(os.path.join(org_t_d,sto_file),'r').readlines()
+
+        with open(os.path.join(t_d,sto_file),'w') as f:
+
+            for line in lines:
+                f.write(line)
+                if line.lower().startswith("end griddata"):
+                    break
+            f.write("\nbegin period 1\n  transient\nend period 1\n")
+
+    # prep that prior ensemble for da
+    da_test_d = "mf6_freyberg"
+    da_t_d = os.path.join(da_test_d, "template_seq_native")
+    org_da_t_d = da_t_d
+    da_t_d = da_t_d + "_compare"
+    if os.path.exists(da_t_d):
+        shutil.rmtree(da_t_d)
+    shutil.copytree(org_da_t_d,da_t_d)
+    da_pst = pyemu.Pst(os.path.join(da_t_d,"freyberg6_run_da2.pst"))
+      
+    ies_test_d = "mf6_freyberg"
+    ies_t_d = os.path.join(ies_test_d, "template")
+    org_ies_t_d = ies_t_d
+    ies_t_d = ies_t_d + "_compare"
+    if os.path.exists(ies_t_d):
+        shutil.rmtree(ies_t_d)
+    shutil.copytree(org_ies_t_d,ies_t_d)
+    ies_pst = pyemu.Pst(os.path.join(ies_t_d,"freyberg6_run_ies.pst"))
+    
+
+    mod_tdis_sto(org_ies_t_d,ies_t_d)
+    
+    pyemu.os_utils.run("mf6",cwd=ies_t_d)
+    pyemu.os_utils.run("mf6",cwd=da_t_d)
+
+
+    ies_pe = pyemu.ParameterEnsemble.from_binary(pst=ies_pst,filename=os.path.join(ies_t_d,"ies_prior.jcb"))
+    da_pe = pyemu.ParameterEnsemble.from_gaussian_draw(pst=da_pst,
+        cov=pyemu.Cov.from_parameter_data(da_pst),num_reals=ies_pe.shape[0])
+    da_pe.index = ies_pe.index
+    d = set(da_pe.columns.tolist()).symmetric_difference(set(ies_pe.columns.tolist()))
+    print(d)
+    da_pe.loc[:,ies_pe.columns] = ies_pe.values
+    da_pe.to_binary(os.path.join(da_t_d,"da_prior.jcb"))
+    da_pst.pestpp_options["ies_par_en"] = "da_prior.jcb"
+
+
+    ies_pst.pestpp_options.pop("ies_num_reals",None)
+    da_pst.pestpp_options.pop("da_num_reals",None)
+    ies_pst.pestpp_options["ies_no_noise"] = True
+    da_pst.pestpp_options["ies_no_noise"] = True
+    
+    ies_pst.control_data.noptmax = 3
+    da_pst.control_data.noptmax = 3
+
+
+
+    # run da
+    da_pst.pestpp_options["ies_use_mda"] = False
+    da_pst.write(os.path.join(da_t_d,"freyberg6_run_da.pst"),version=2)
+    da_m_d_glm = os.path.join(da_test_d, "master_da_glm")
+    pyemu.os_utils.start_workers(da_t_d, exe_path.replace("-ies","-da"), "freyberg6_run_da.pst",
+                                num_workers=10, worker_root=da_test_d, port=port,
+                                master_dir=da_m_d_glm, verbose=True)
+
+    da_pst.pestpp_options["ies_use_mda"] = True
+    da_pst.write(os.path.join(da_t_d,"freyberg6_run_da.pst"),version=2)
+    da_m_d_mda = os.path.join(da_test_d, "master_da_mda")
+    pyemu.os_utils.start_workers(da_t_d, exe_path.replace("-ies","-da"), "freyberg6_run_da.pst",
+                                num_workers=10, worker_root=da_test_d, port=port,
+                                master_dir=da_m_d_mda, verbose=True)
+    
+    # run ies    
+    ies_pst.pestpp_options["ies_use_mda"] = False
+    ies_pst.write(os.path.join(ies_t_d,"freyberg6_run_ies.pst"),version=2)
+    ies_m_d_glm = os.path.join(ies_test_d, "master_ies_glm")
+    pyemu.os_utils.start_workers(ies_t_d, exe_path.replace("-da","-ies"), "freyberg6_run_ies.pst",
+                                num_workers=10, worker_root=ies_test_d, port=port,
+                                master_dir=ies_m_d_glm, verbose=True)
+
+    ies_pst.pestpp_options["ies_use_mda"] = True
+    ies_pst.write(os.path.join(ies_t_d,"freyberg6_run_ies.pst"),version=2)
+    ies_m_d_mda = os.path.join(ies_test_d, "master_ies_mda")
+    pyemu.os_utils.start_workers(ies_t_d, exe_path.replace("-da","-ies"), "freyberg6_run_ies.pst",
+                                num_workers=10, worker_root=ies_test_d, port=port,
+                                master_dir=ies_m_d_glm, verbose=True)
+
+
 if __name__ == "__main__":
     
     
     #shutil.copy2(os.path.join("..","exe","windows","x64","Debug","pestpp-da.exe"),os.path.join("..","bin","pestpp-da.exe"))
-    seq_10par_cycle_parse_test()
+    #seq_10par_cycle_parse_test()
     #seq_10par_xsec_hotstart_test()
     #seq_10par_diff_obspar_cycle_test()
     #da_mf6_freyberg_test_1()
@@ -1278,4 +1386,5 @@ if __name__ == "__main__":
     #da_mf6_freyberg_test_3()
     #seq_10par_xsec_state_est_test()
     #seq_10par_xsec_fixed_test()
+    compare_mf6_freyberg()
 

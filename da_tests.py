@@ -1300,6 +1300,8 @@ def compare_mf6_freyberg():
         shutil.rmtree(da_t_d)
     shutil.copytree(org_da_t_d,da_t_d)
     da_pst = pyemu.Pst(os.path.join(da_t_d,"freyberg6_run_da2.pst"))
+    par = da_pst.parameter_data
+    par.loc[par.parnme.str.contains("welflx"),"scale"] = -1.0
       
     ies_test_d = "mf6_freyberg"
     ies_t_d = os.path.join(ies_test_d, "template")
@@ -1330,8 +1332,12 @@ def compare_mf6_freyberg():
 
     ies_pst.pestpp_options.pop("ies_num_reals",None)
     da_pst.pestpp_options.pop("da_num_reals",None)
+    ies_pst.pestpp_options.pop("da_num_reals",None)
+    da_pst.pestpp_options.pop("ies_num_reals",None)
     ies_pst.pestpp_options["ies_no_noise"] = True
     da_pst.pestpp_options["ies_no_noise"] = True
+    da_pst.pestpp_options["ies_verbose_level"] = 1
+    ies_pst.pestpp_options["ies_verbose_level"] = 1
     
     ies_pst.control_data.noptmax = 3
     da_pst.control_data.noptmax = 3
@@ -1353,6 +1359,7 @@ def compare_mf6_freyberg():
                                 num_workers=10, worker_root=da_test_d, port=port,
                                 master_dir=da_m_d_mda, verbose=True)
     
+    return
     # run ies    
     ies_pst.pestpp_options["ies_use_mda"] = False
     ies_pst.write(os.path.join(ies_t_d,"freyberg6_run_ies.pst"),version=2)
@@ -1368,6 +1375,82 @@ def compare_mf6_freyberg():
                                 num_workers=10, worker_root=ies_test_d, port=port,
                                 master_dir=ies_m_d_glm, verbose=True)
 
+
+def plot_compare():
+    import matplotlib.pyplot as plt
+    da_m_d = os.path.join("mf6_freyberg", "master_da_glm")
+    ies_m_d = os.path.join("mf6_freyberg", "master_ies_glm")
+    ies_case = "freyberg6_run_ies"
+    da_case = "freyberg6_run_da"
+
+    ies_pst = pyemu.Pst(os.path.join(ies_m_d,ies_case+".pst"))
+    ies_obs = ies_pst.observation_data#.loc[ies_pst.nnz_obs_names,:]
+    ies_obs = ies_obs.loc[ies_obs.obgnme.apply(lambda x: x in ies_pst.nnz_obs_groups),:]
+    print(ies_obs)
+    ies_obs.loc[:,"datetime"] = pd.to_datetime(ies_obs.obsnme.apply(lambda x: x.split('_')[-1]),format='%Y%m%d')
+
+    ies_noptmax = ies_pst.control_data.noptmax
+    ies_pr_oe = pd.read_csv(os.path.join(ies_m_d,ies_case+".0.obs.csv"))
+    ies_pt_oe = pd.read_csv(os.path.join(ies_m_d,ies_case+".{0}.obs.csv".format(ies_noptmax)))
+
+    da_pst = pyemu.Pst(os.path.join(da_m_d,da_case+".pst"))
+    da_obs = da_pst.observation_data.loc[da_pst.nnz_obs_names,:].copy()
+    da_obs.loc[da_obs.obsnme.str.contains("gage"),"org_obgnme"] = "gage"
+    print(da_obs)
+    da_noptmax = da_pst.control_data.noptmax
+    #da_pr_oe = pd.read_csv(os.path.join(da_m_d,da_case+".0.obs.csv"))
+    num_cycles = 25
+    da_pr_dict = {}
+    da_pt_dict = {}
+    for cycle in range(num_cycles):
+        print(cycle)
+        da_pr_oe = pd.read_csv(os.path.join(da_m_d,da_case+".{0}.0.obs.csv".format(cycle)))
+        da_pr_dict[cycle] = da_pr_oe
+        pt_file = os.path.join(da_m_d,da_case+".{0}.{1}.obs.csv".format(cycle,da_noptmax))
+        if (os.path.exists(pt_file)):
+            da_pt_oe = pd.read_csv(pt_file)
+            da_pt_dict[cycle] = da_pt_oe
+        else:
+            print("missing posterior",cycle)
+    ies_og_uvals = ies_obs.obgnme.unique()
+    print(ies_og_uvals)
+    
+    ies_og_uvals.sort()
+    for cycle in range(num_cycles):
+        
+
+        fig,axes = plt.subplots(6,1,figsize=(10,10))
+        i = 0
+        for og in ies_og_uvals:
+            
+            ies_obs_og = ies_obs.loc[ies_obs.obgnme==og,:].copy()
+            
+            ies_obs_og.sort_values(by="datetime",inplace=True)
+            dts = ies_obs_og.datetime.values
+            ax = axes[i]
+            [ax.plot(dts,ies_pr_oe.loc[idx,ies_obs_og.obsnme],"0.5",alpha=0.5,lw=0.1) for idx in ies_pr_oe.index]
+            [ax.plot(dts,ies_pt_oe.loc[idx,ies_obs_og.obsnme],"b",alpha=0.5,lw=0.1) for idx in ies_pt_oe.index]
+            ax.plot(dts,ies_obs_og.obsval,"r")
+            #print(og)
+            ax.set_title("ies "+og,loc="left")
+
+            ax = axes[i+1]
+            da_obs_og = da_obs.loc[da_obs.org_obgnme==og,:]
+            ax.set_title("da "+da_obs_og.obsnme.values[0],loc="left")
+            ax.plot(dts,ies_obs_og.obsval,"r")
+            
+            for ccycle in range(cycle+1):
+                da_pr_oe = da_pr_dict[ccycle]
+                ax.scatter([dts[ccycle] for _ in range(da_pr_oe.shape[0])],da_pr_oe.loc[:,da_obs_og.obsnme[0]],marker=".",color="0.5")
+
+                if ccycle in da_pt_dict:
+                    da_pt_oe = da_pt_dict[ccycle]
+                    ax.scatter([dts[ccycle] for _ in range(da_pt_oe.shape[0])],da_pt_oe.loc[:,da_obs_og.obsnme[0]],marker=".",color="b")
+            ax.set_ylim(axes[i].get_ylim())
+            i += 2
+        plt.tight_layout()
+        plt.savefig("compare_{0}.pdf".format(cycle))
+        plt.close(fig)
 
 if __name__ == "__main__":
     
@@ -1387,4 +1470,5 @@ if __name__ == "__main__":
     #seq_10par_xsec_state_est_test()
     #seq_10par_xsec_fixed_test()
     compare_mf6_freyberg()
+    plot_compare()
 

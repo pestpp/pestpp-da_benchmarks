@@ -1302,6 +1302,8 @@ def compare_mf6_freyberg():
     da_pst = pyemu.Pst(os.path.join(da_t_d,"freyberg6_run_da2.pst"))
     par = da_pst.parameter_data
     par.loc[par.parnme.str.contains("welflx"),"scale"] = -1.0
+    par.loc["perlen","parval1"] = 100000
+    #par.loc[par.parnme.str.contains("head"),"partrans"] = "fixed"
       
     ies_test_d = "mf6_freyberg"
     ies_t_d = os.path.join(ies_test_d, "template")
@@ -1329,22 +1331,32 @@ def compare_mf6_freyberg():
     da_pe.to_binary(os.path.join(da_t_d,"da_prior.jcb"))
     da_pst.pestpp_options["ies_par_en"] = "da_prior.jcb"
 
-
     ies_pst.pestpp_options.pop("ies_num_reals",None)
     da_pst.pestpp_options.pop("da_num_reals",None)
     ies_pst.pestpp_options.pop("da_num_reals",None)
     da_pst.pestpp_options.pop("ies_num_reals",None)
-    ies_pst.pestpp_options["ies_no_noise"] = True
-    da_pst.pestpp_options["ies_no_noise"] = True
+    ies_pst.pestpp_options["ies_no_noise"] = False
+    da_pst.pestpp_options["ies_no_noise"] = False
     da_pst.pestpp_options["ies_verbose_level"] = 1
     ies_pst.pestpp_options["ies_verbose_level"] = 1
-    
+    ies_pst.pestpp_options.pop("ies_localizer",None)
+    da_pst.pestpp_options.pop("ies_localizer", None)
+    ies_pst.pestpp_options.pop("ies_autoadaloc", None)
+    da_pst.pestpp_options.pop("ies_localizer", None)
+    ies_pst.pestpp_options["ies_save_lambda_en"] = False
+    da_pst.pestpp_options["ies_save_lambda_en"] = False
+    #da_pst.pestpp_options["da_stop_cycle"] = 1
+
     ies_pst.control_data.noptmax = 3
     da_pst.control_data.noptmax = 3
 
-
-
-    # run da
+    # # run da
+    da_pst.pestpp_options["ies_use_mda"] = True
+    da_pst.write(os.path.join(da_t_d, "freyberg6_run_da.pst"), version=2)
+    da_m_d_mda = os.path.join(da_test_d, "master_da_mda")
+    pyemu.os_utils.start_workers(da_t_d, exe_path.replace("-ies", "-da"), "freyberg6_run_da.pst",
+                                 num_workers=10, worker_root=da_test_d, port=port,
+                                 master_dir=da_m_d_mda, verbose=True)
     da_pst.pestpp_options["ies_use_mda"] = False
     da_pst.write(os.path.join(da_t_d,"freyberg6_run_da.pst"),version=2)
     da_m_d_glm = os.path.join(da_test_d, "master_da_glm")
@@ -1352,14 +1364,6 @@ def compare_mf6_freyberg():
                                 num_workers=10, worker_root=da_test_d, port=port,
                                 master_dir=da_m_d_glm, verbose=True)
 
-    da_pst.pestpp_options["ies_use_mda"] = True
-    da_pst.write(os.path.join(da_t_d,"freyberg6_run_da.pst"),version=2)
-    da_m_d_mda = os.path.join(da_test_d, "master_da_mda")
-    pyemu.os_utils.start_workers(da_t_d, exe_path.replace("-ies","-da"), "freyberg6_run_da.pst",
-                                num_workers=10, worker_root=da_test_d, port=port,
-                                master_dir=da_m_d_mda, verbose=True)
-    
-    return
     # run ies    
     ies_pst.pestpp_options["ies_use_mda"] = False
     ies_pst.write(os.path.join(ies_t_d,"freyberg6_run_ies.pst"),version=2)
@@ -1373,13 +1377,13 @@ def compare_mf6_freyberg():
     ies_m_d_mda = os.path.join(ies_test_d, "master_ies_mda")
     pyemu.os_utils.start_workers(ies_t_d, exe_path.replace("-da","-ies"), "freyberg6_run_ies.pst",
                                 num_workers=10, worker_root=ies_test_d, port=port,
-                                master_dir=ies_m_d_glm, verbose=True)
+                                master_dir=ies_m_d_mda, verbose=True)
 
 
-def plot_compare():
+def plot_compare(solution="ies",noptmax=None):
     import matplotlib.pyplot as plt
-    da_m_d = os.path.join("mf6_freyberg", "master_da_glm")
-    ies_m_d = os.path.join("mf6_freyberg", "master_ies_glm")
+    da_m_d = os.path.join("mf6_freyberg", "master_da_{0}".format(solution))
+    ies_m_d = os.path.join("mf6_freyberg", "master_ies_{0}".format(solution))
     ies_case = "freyberg6_run_ies"
     da_case = "freyberg6_run_da"
 
@@ -1389,7 +1393,10 @@ def plot_compare():
     print(ies_obs)
     ies_obs.loc[:,"datetime"] = pd.to_datetime(ies_obs.obsnme.apply(lambda x: x.split('_')[-1]),format='%Y%m%d')
 
+
     ies_noptmax = ies_pst.control_data.noptmax
+    if noptmax is not None:
+        ies_noptmax = noptmax
     ies_pr_oe = pd.read_csv(os.path.join(ies_m_d,ies_case+".0.obs.csv"))
     ies_pt_oe = pd.read_csv(os.path.join(ies_m_d,ies_case+".{0}.obs.csv".format(ies_noptmax)))
 
@@ -1398,6 +1405,8 @@ def plot_compare():
     da_obs.loc[da_obs.obsnme.str.contains("gage"),"org_obgnme"] = "gage"
     print(da_obs)
     da_noptmax = da_pst.control_data.noptmax
+    if noptmax is not None:
+        da_noptmax = noptmax
     #da_pr_oe = pd.read_csv(os.path.join(da_m_d,da_case+".0.obs.csv"))
     num_cycles = 25
     da_pr_dict = {}
@@ -1430,26 +1439,43 @@ def plot_compare():
             ax = axes[i]
             [ax.plot(dts,ies_pr_oe.loc[idx,ies_obs_og.obsnme],"0.5",alpha=0.5,lw=0.1) for idx in ies_pr_oe.index]
             [ax.plot(dts,ies_pt_oe.loc[idx,ies_obs_og.obsnme],"b",alpha=0.5,lw=0.1) for idx in ies_pt_oe.index]
-            ax.plot(dts,ies_obs_og.obsval,"r")
-            #print(og)
-            ax.set_title("ies "+og,loc="left")
+            ax.plot(dts, ies_pr_oe.loc[ies_pr_oe.index[0], ies_obs_og.obsnme], "0.5", alpha=0.5, lw=0.1,label="prior real")
+            ax.plot(dts, ies_pt_oe.loc[ies_pt_oe.index[0], ies_obs_og.obsnme], "b", alpha=0.5, lw=0.1,label="post real")
+            ax.plot(dts,ies_obs_og.obsval,"r",label="truth")
+            ies_obs_nz = ies_obs_og.loc[ies_obs_og.weight>0,:]
 
+            ax.scatter(ies_obs_nz.datetime.values, ies_obs_nz.obsval, marker="^", color="r",s=50,zorder=10,label="obs")
+
+            #print(og)
+            ax.set_title("smoother formulation, observation location: "+og,loc="left")
+            ax.legend(loc="upper right")
             ax = axes[i+1]
             da_obs_og = da_obs.loc[da_obs.org_obgnme==og,:]
-            ax.set_title("da "+da_obs_og.obsnme.values[0],loc="left")
-            ax.plot(dts,ies_obs_og.obsval,"r")
-            
+            ax.set_title("filter formulation (monthly cycles), observation location: "+da_obs_og.obsnme.values[0],loc="left")
+            ax.plot(dts,ies_obs_og.obsval,"r",label="truth")
+            ax.scatter(ies_obs_nz.datetime.values, ies_obs_nz.obsval, marker="^", color="r",s=50,zorder=10,label="obs")
+            post_labeled = False
             for ccycle in range(cycle+1):
                 da_pr_oe = da_pr_dict[ccycle]
-                ax.scatter([dts[ccycle] for _ in range(da_pr_oe.shape[0])],da_pr_oe.loc[:,da_obs_og.obsnme[0]],marker=".",color="0.5")
+                label = None
+                if ccycle == 0:
+                    label = "prior real"
+                ax.scatter([dts[ccycle] for _ in range(da_pr_oe.shape[0])],da_pr_oe.loc[:,da_obs_og.obsnme[0]].values,
+                           marker=".",color="0.5",label=label)
 
                 if ccycle in da_pt_dict:
                     da_pt_oe = da_pt_dict[ccycle]
-                    ax.scatter([dts[ccycle] for _ in range(da_pt_oe.shape[0])],da_pt_oe.loc[:,da_obs_og.obsnme[0]],marker=".",color="b")
+                    label = None
+                    if not post_labeled:
+                        label = "post real"
+                        post_labeled = True
+                    ax.scatter([dts[ccycle] for _ in range(da_pt_oe.shape[0])],da_pt_oe.loc[:,da_obs_og.obsnme[0]].values,
+                               marker=".",color="b",label=label)
             ax.set_ylim(axes[i].get_ylim())
+            ax.legend(loc="upper right")
             i += 2
         plt.tight_layout()
-        plt.savefig("compare_{0}.pdf".format(cycle))
+        plt.savefig("compare_{0}_{1}_{2}_{3}.pdf".format(solution,cycle,ies_noptmax,da_noptmax))
         plt.close(fig)
 
 if __name__ == "__main__":
@@ -1469,6 +1495,7 @@ if __name__ == "__main__":
     #da_mf6_freyberg_test_3()
     #seq_10par_xsec_state_est_test()
     #seq_10par_xsec_fixed_test()
-    compare_mf6_freyberg()
-    plot_compare()
+    #compare_mf6_freyberg()
+    plot_compare("glm",noptmax=1)
+    plot_compare("mda",noptmax=1)
 

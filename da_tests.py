@@ -1345,6 +1345,9 @@ def compare_mf6_freyberg():
     da_pst.pestpp_options.pop("ies_localizer", None)
     ies_pst.pestpp_options["ies_save_lambda_en"] = False
     da_pst.pestpp_options["ies_save_lambda_en"] = False
+    ies_pst.pestpp_options["ies_drop_conflicts"] = True
+    da_pst.pestpp_options["ies_drop_conflicts"] = True
+
     #da_pst.pestpp_options["da_stop_cycle"] = 1
 
     ies_pst.control_data.noptmax = 3
@@ -1423,7 +1426,9 @@ def plot_compare(solution="ies",noptmax=None):
             print("missing posterior",cycle)
     ies_og_uvals = ies_obs.obgnme.unique()
     print(ies_og_uvals)
-    
+    plt_d = "compare_plots"
+    if not os.path.exists(plt_d):
+        os.mkdir(plt_d)
     ies_og_uvals.sort()
     for cycle in range(num_cycles):
         
@@ -1475,7 +1480,7 @@ def plot_compare(solution="ies",noptmax=None):
             ax.legend(loc="upper right")
             i += 2
         plt.tight_layout()
-        plt.savefig("compare_{0}_{1}_{2}_{3}.pdf".format(solution,cycle,ies_noptmax,da_noptmax))
+        plt.savefig(os.path.join(plt_d,"compare_{0}_{1}_{2}_{3}.pdf".format(solution,cycle,ies_noptmax,da_noptmax)))
         plt.close(fig)
 
 if __name__ == "__main__":
@@ -1495,7 +1500,7 @@ if __name__ == "__main__":
     #da_mf6_freyberg_test_3()
     #seq_10par_xsec_state_est_test()
     #seq_10par_xsec_fixed_test()
-    #compare_mf6_freyberg()
-    plot_compare("glm",noptmax=1)
-    plot_compare("mda",noptmax=1)
+    compare_mf6_freyberg()
+    plot_compare("glm",noptmax=3)
+    plot_compare("mda",noptmax=3)
 

@@ -1341,8 +1341,8 @@ def compare_mf6_freyberg():
     ies_pst.pestpp_options["ies_verbose_level"] = 1
     ies_pst.pestpp_options.pop("ies_localizer",None)
     da_pst.pestpp_options.pop("ies_localizer", None)
-    ies_pst.pestpp_options.pop("ies_autoadaloc", None)
-    da_pst.pestpp_options.pop("ies_localizer", None)
+    ies_pst.pestpp_options["ies_autoadaloc"] = True
+    da_pst.pestpp_options["ies_autoadaloc"] = True
     ies_pst.pestpp_options["ies_save_lambda_en"] = False
     da_pst.pestpp_options["ies_save_lambda_en"] = False
     ies_pst.pestpp_options["ies_drop_conflicts"] = True
@@ -1350,8 +1350,8 @@ def compare_mf6_freyberg():
 
     #da_pst.pestpp_options["da_stop_cycle"] = 1
 
-    ies_pst.control_data.noptmax = 3
-    da_pst.control_data.noptmax = 3
+    ies_pst.control_data.noptmax = 5
+    da_pst.control_data.noptmax = 5
 
     # # run da
     da_pst.pestpp_options["ies_use_mda"] = True
@@ -1383,7 +1383,7 @@ def compare_mf6_freyberg():
                                 master_dir=ies_m_d_mda, verbose=True)
 
 
-def plot_compare(solution="ies",noptmax=None):
+def plot_compare(solution="ies",noptmax=1):
     import matplotlib.pyplot as plt
     da_m_d = os.path.join("mf6_freyberg", "master_da_{0}".format(solution))
     ies_m_d = os.path.join("mf6_freyberg", "master_ies_{0}".format(solution))
@@ -1396,20 +1396,14 @@ def plot_compare(solution="ies",noptmax=None):
     print(ies_obs)
     ies_obs.loc[:,"datetime"] = pd.to_datetime(ies_obs.obsnme.apply(lambda x: x.split('_')[-1]),format='%Y%m%d')
 
-
-    ies_noptmax = ies_pst.control_data.noptmax
-    if noptmax is not None:
-        ies_noptmax = noptmax
     ies_pr_oe = pd.read_csv(os.path.join(ies_m_d,ies_case+".0.obs.csv"))
-    ies_pt_oe = pd.read_csv(os.path.join(ies_m_d,ies_case+".{0}.obs.csv".format(ies_noptmax)))
+    ies_pt_oe = pd.read_csv(os.path.join(ies_m_d,ies_case+".{0}.obs.csv".format(noptmax)))
 
     da_pst = pyemu.Pst(os.path.join(da_m_d,da_case+".pst"))
     da_obs = da_pst.observation_data.loc[da_pst.nnz_obs_names,:].copy()
     da_obs.loc[da_obs.obsnme.str.contains("gage"),"org_obgnme"] = "gage"
     print(da_obs)
-    da_noptmax = da_pst.control_data.noptmax
-    if noptmax is not None:
-        da_noptmax = noptmax
+
     #da_pr_oe = pd.read_csv(os.path.join(da_m_d,da_case+".0.obs.csv"))
     num_cycles = 25
     da_pr_dict = {}
@@ -1418,7 +1412,7 @@ def plot_compare(solution="ies",noptmax=None):
         print(cycle)
         da_pr_oe = pd.read_csv(os.path.join(da_m_d,da_case+".{0}.0.obs.csv".format(cycle)))
         da_pr_dict[cycle] = da_pr_oe
-        pt_file = os.path.join(da_m_d,da_case+".{0}.{1}.obs.csv".format(cycle,da_noptmax))
+        pt_file = os.path.join(da_m_d,da_case+".{0}.{1}.obs.csv".format(cycle,noptmax))
         if (os.path.exists(pt_file)):
             da_pt_oe = pd.read_csv(pt_file)
             da_pt_dict[cycle] = da_pt_oe
@@ -1426,7 +1420,7 @@ def plot_compare(solution="ies",noptmax=None):
             print("missing posterior",cycle)
     ies_og_uvals = ies_obs.obgnme.unique()
     print(ies_og_uvals)
-    plt_d = "compare_plots"
+    plt_d = "compare_plots_{0}_{1}".format(solution,noptmax)
     if not os.path.exists(plt_d):
         os.mkdir(plt_d)
     ies_og_uvals.sort()
@@ -1480,8 +1474,11 @@ def plot_compare(solution="ies",noptmax=None):
             ax.legend(loc="upper right")
             i += 2
         plt.tight_layout()
-        plt.savefig(os.path.join(plt_d,"compare_{0}_{1}_{2}_{3}.pdf".format(solution,cycle,ies_noptmax,da_noptmax)))
+        plt.savefig(os.path.join(plt_d,"compare_{0}_{1:03d}.png".format(solution,cycle)))
         plt.close(fig)
+
+        os.system("ffmpeg -r 2 -i {0} -loop 0 -final_delay 100 -y {1}.mp4".
+                  format(os.path.join(plt_d,"compare_{0}_%03d.png".format(solution)),os.path.join(plt_d,solution)))
 
 if __name__ == "__main__":
     
@@ -1501,6 +1498,6 @@ if __name__ == "__main__":
     #seq_10par_xsec_state_est_test()
     #seq_10par_xsec_fixed_test()
     compare_mf6_freyberg()
-    plot_compare("glm",noptmax=3)
-    plot_compare("mda",noptmax=3)
+    plot_compare("glm",noptmax=4)
+    plot_compare("mda",noptmax=4)
 

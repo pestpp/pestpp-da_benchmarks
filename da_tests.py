@@ -1582,7 +1582,7 @@ def plot_compare(solution="ies",noptmax=1):
                 plt.tight_layout()
                 plt.savefig(os.path.join(plt_d, "compare_{0}_{1}_{2:03d}.png".format(og, solution, fig_count)))
                 plt.close(fig)
-        break
+
 
 
 
@@ -1593,7 +1593,74 @@ def plot_compare(solution="ies",noptmax=1):
         os.system("ffmpeg -r 1 -i {0} -loop 1 -final_delay 100 -y -vf fps=25 {1}.mp4".
               format(os.path.join(plt_d,"compare_{0}_{1}_%03d.png".format(og,solution)),
                      os.path.join(plt_d,solution+"_"+og)))
-        break
+
+
+def da_pareto_demo():
+
+    test_d = "mf6_freyberg"
+    t_d = os.path.join(test_d, "template")
+    pst = pyemu.Pst(os.path.join(t_d,"freyberg6_run_ies.pst"))
+    pst.control_data.noptmax = 0
+    #pst.write(os.path.join(t_d,"freyberg6_run_ies.pst"))
+    #pyemu.os_utils.run("{0} freyberg6_run_ies.pst".format(exe_path.replace("-da","-ies")),cwd=t_d)
+
+    obs = pst.observation_data
+    mx_weight = 0.05
+    fore_name = "headwater_20171031"
+    obs.loc[fore_name,"weight"] = mx_weight
+    obs.loc[fore_name,"obsval"] = 500
+
+    # to find a good max forecast weight
+    # import matplotlib.pyplot as plt
+    # pst.plot(kind="phi_pie")
+    # plt.show()
+    # return
+
+    wtbl = pd.DataFrame(index = pst.nnz_obs_names,columns=np.arange(20))
+    for col in wtbl.columns:
+        wtbl.loc[pst.nnz_obs_names,col] = obs.loc[pst.nnz_obs_names,"weight"].values
+    hw_wghts = np.linspace(0.0,mx_weight,wtbl.shape[1])
+    wtbl.loc[fore_name,:] = hw_wghts
+    print(hw_wghts)
+    wtbl.to_csv(os.path.join(t_d,"pareto_weight_table.csv"))
+    pst.pestpp_options["da_weight_cycle_table"] = "pareto_weight_table.csv"
+    pst.control_data.noptmax = 3
+    pst.pestpp_options.pop("ies_localizer",None)
+    pst.pestpp_options["ies_autoadaloc"] = False
+    pst.write(os.path.join(t_d,"freyberg6_run_ies_pareto.pst"))
+    m_d = os.path.join(test_d,"master_ies_pareto")
+    pyemu.os_utils.start_workers(t_d, exe_path, "freyberg6_run_ies_pareto.pst",
+                                 num_workers=10, worker_root=test_d, port=port,
+                                 master_dir=m_d, verbose=True)
+
+
+def plot_da_pareto_demo():
+    m_d = os.path.join("mf6_freyberg","master_ies_pareto")
+    case = "freyberg6_run_ies_pareto"
+    pst = pyemu.Pst(os.path.join(m_d,case+".pst"))
+    global_oe_files = [f for f in os.listdir(m_d) if case in f and ".global." in f and ".oe." in f]
+    print(global_oe_files)
+    global_oe_files = {int(f.split('.')[2]):os.path.join(m_d,f) for f in global_oe_files}
+    cycles = list(global_oe_files.keys())
+    cycles.sort()
+    obs = pst.observation_data
+    # turn off the forecast weight for phi calcs
+    fname = "headwater_20171031"
+    obs.loc[fname,"weight"] = 0.0
+    import matplotlib.pyplot as plt
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    cmap = plt.get_cmap("jet")
+    for cycle in cycles:
+        oe = pyemu.ObservationEnsemble.from_csv(pst=pst,filename=global_oe_files[cycle])
+        fvec = oe.loc[:,fname]
+        pvec = oe.phi_vector
+        c = cmap(cycle/max(cycles))
+        ax.scatter(fvec.mean(),pvec.mean(),marker=".",color=c,label="cycle {0}".format(cycle))
+    ax.legend(loc="upper right")
+    ax.set_xlabel("{0} sw-gw flux".format(fname))
+    ax.set_ylabel("$\phi$")
+    plt.show()
+
 
 if __name__ == "__main__":
     
@@ -1612,7 +1679,9 @@ if __name__ == "__main__":
     #da_mf6_freyberg_test_3()
     #seq_10par_xsec_state_est_test()
     #seq_10par_xsec_fixed_test()
-    compare_mf6_freyberg()
+    #compare_mf6_freyberg()
     #plot_compare("glm",noptmax=3)
     #plot_compare("mda",noptmax=3)
+    da_pareto_demo()
+    plot_da_pareto_demo()
 

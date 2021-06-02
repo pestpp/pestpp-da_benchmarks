@@ -1151,11 +1151,25 @@ def seq_10par_cycle_parse_test():
     test_d = "10par_xsec"
     t_d = os.path.join(test_d, "template")
     pst = pyemu.Pst(os.path.join(t_d,"pest.pst"))
-    
+
+    new_ins_file = os.path.join(t_d, "firstcycle.hds.ins")
+    org_ins_file = os.path.join(t_d, "10par_xsec.hds.ins")
+    lines = open(org_ins_file,'r').readlines()
+    with open(new_ins_file, 'w') as f:
+        for line in lines:
+            f.write(line.replace("h","firstcycle"))
+
+    df = pst.add_observations(new_ins_file,"10par_xsec.hds",pst_path=".")
+    obs = pst.observation_data
+    obs.loc[obs.obsnme.str.startswith("firstcycle"),"cycle"] = 0
+    obs.loc[obs.obsnme.str.startswith("firstcycle"), "weight"] = 1
+
+
+
     tpl_file = os.path.join(t_d,"every_other_cycle.dat.tpl")
     with open(tpl_file,'w') as f:
-    	f.write("ptf ~\n")
-    	f.write("every_other_cycle  ~  every_other_cycle  ~\n")
+        f.write("ptf ~\n")
+        f.write("every_other_cycle  ~  every_other_cycle  ~\n")
     pst.add_parameters(tpl_file,pst_path=".")
     par = pst.parameter_data
     
@@ -1185,7 +1199,7 @@ def seq_10par_cycle_parse_test():
     par.loc["once_and_a_while","parval1"] = 1.0
     par.loc["once_and_a_while","parubnd"] = 10
     par.loc["once_and_a_while","parlbnd"] = 0.1
- 	
+
 
     par.loc[par.parnme.str.contains("strt"),"partrans"] = "log"
     par.loc[["cnhd_01","strt_02","strt_03"],"partrans"] = "fixed"
@@ -1194,7 +1208,7 @@ def seq_10par_cycle_parse_test():
     obs.loc[obs.obsnme.str.startswith("h01"),"weight"] = 1.0
     obs.loc[:,"state_par_link"] = ""
     obs.loc[obs.obgnme=="head1","state_par_link"] = strt_pars
-    obs.loc[:,"cycle"] = -1
+    obs.loc[~obs.obsnme.str.startswith("firstcycle"),"cycle"] = -1
     
     pst.control_data.noptmax = 3
 
@@ -1204,8 +1218,12 @@ def seq_10par_cycle_parse_test():
     mid.loc[mid.model_file.str.contains("once"),"cycle"] = par.loc["once_and_a_while","cycle"]
     mid.loc[mid.pest_file.str.contains("_even"),"cycle"] = par.loc[df.parnme,"cycle"].values[0]
     mid.loc[mid.pest_file.str.contains("hk_Layer_1.ref"),"cycle"] = par.loc[par.parnme.str.startswith("k_"),"cycle"].values[0]
- 
+
+
+
     pst.model_output_data.loc[:,"cycle"] = -1
+    mod = pst.model_output_data
+    mod.loc[mod.pest_file.str.contains("firstcycle"), "cycle"] = -1
 
     def get_loc(pst):
 
@@ -1237,10 +1255,11 @@ def seq_10par_cycle_parse_test():
 
     mx_cycle = 10
     cycles = np.arange(0,mx_cycle)
-    odf = pd.DataFrame(index=cycles,columns=pst.nnz_obs_names)
-    odf.loc[:,:] = obs.loc[pst.nnz_obs_names,"obsval"].values
+    tbl_onames = [n for n in pst.nnz_obs_names if not n.startswith("firstcycle")]
+    odf = pd.DataFrame(index=cycles,columns=tbl_onames)
+    odf.loc[:,:] = obs.loc[tbl_onames,"obsval"].values
     odf.T.to_csv(os.path.join(t_d,"obs_cycle_tbl.csv"))
-    wdf = pd.DataFrame(index=cycles,columns=pst.nnz_obs_names)
+    wdf = pd.DataFrame(index=cycles,columns=tbl_onames)
     wdf.loc[:,:] = 0.0
     wdf.iloc[1,[3,5]] = 1.0
     wdf.iloc[3,:] = 1.0
@@ -1303,7 +1322,7 @@ def compare_mf6_freyberg():
     par = da_pst.parameter_data
     par.loc[par.parnme.str.contains("welflx"),"scale"] = -1.0
     par.loc["perlen","parval1"] = 100000
-    #par.loc[par.parnme.str.contains("head"),"partrans"] = "fixed"
+    #par.loc[~par.parnme.str.contains("head"),"partrans"] = "fixed"
       
     ies_test_d = "mf6_freyberg"
     ies_t_d = os.path.join(ies_test_d, "template")
@@ -1313,15 +1332,14 @@ def compare_mf6_freyberg():
         shutil.rmtree(ies_t_d)
     shutil.copytree(org_ies_t_d,ies_t_d)
     ies_pst = pyemu.Pst(os.path.join(ies_t_d,"freyberg6_run_ies.pst"))
-    
 
     mod_tdis_sto(org_ies_t_d,ies_t_d)
     
     pyemu.os_utils.run("mf6",cwd=ies_t_d)
     pyemu.os_utils.run("mf6",cwd=da_t_d)
 
-
-    ies_pe = pyemu.ParameterEnsemble.from_binary(pst=ies_pst,filename=os.path.join(ies_t_d,"ies_prior.jcb"))
+    ies_pst.pestpp_options["ies_par_en"] = "prior.jcb"
+    ies_pe = pyemu.ParameterEnsemble.from_binary(pst=ies_pst,filename=os.path.join(ies_t_d,"prior.jcb"))
     da_pe = pyemu.ParameterEnsemble.from_gaussian_draw(pst=da_pst,
         cov=pyemu.Cov.from_parameter_data(da_pst),num_reals=ies_pe.shape[0])
     da_pe.index = ies_pe.index
@@ -1331,6 +1349,55 @@ def compare_mf6_freyberg():
     da_pe.to_binary(os.path.join(da_t_d,"da_prior.jcb"))
     da_pst.pestpp_options["ies_par_en"] = "da_prior.jcb"
 
+    # turn on all of the org freyberg model obs locations for the first year
+    ies_obs = ies_pst.observation_data
+    ies_obs.loc[:,"weight"] = 0.0
+    tr_obs = ies_obs.loc[ies_obs.obsnme.apply(lambda x: x.startswith("trgw") and "2017" not in x),:].copy()
+    ies_obs.loc[tr_obs.obsnme,"weight"] = 6
+    gage_obs = ies_obs.loc[ies_obs.obsnme.apply(lambda x: x.startswith("gage") and "2017" not in x),:].copy()
+    ies_obs.loc[gage_obs.obsnme,"weight"] = 1.0 / (ies_obs.loc[gage_obs.obsnme,"obsval"] * 0.15)
+
+    # use this to check the phi contribs
+    # ies_pst.control_data.noptmax = 0
+    # ies_pst.write(os.path.join(ies_t_d,"reweight.pst"))
+    # pyemu.os_utils.run("{0} reweight.pst".format(exe_path.replace("-da","-ies")),cwd=ies_t_d)
+    # ies_pst.set_res(os.path.join(ies_t_d,"reweight.base.rei"))
+    # print({n:p for n,p in ies_pst.phi_components.items() if n in ies_pst.nnz_obs_groups})
+    # ies_pst.plot(kind="phi_pie")
+    # import matplotlib.pyplot as plt
+    # plt.show()
+    # return
+
+    tr_obs.loc[:,"k"] = tr_obs.obsnme.apply(lambda x: int(x.split('_')[1]))
+    tr_obs.loc[:, "i"] = tr_obs.obsnme.apply(lambda x: int(x.split('_')[2]))
+    tr_obs.loc[:, "j"] = tr_obs.obsnme.apply(lambda x: int(x.split('_')[3]))
+    tr_obs.loc[:, "kij"] = tr_obs.apply(lambda x: (x.k,x.i,x.j),axis=1)
+    ukij = set(tr_obs.kij.unique().tolist())
+    da_obs = da_pst.observation_data
+    hd_obs = da_obs.loc[da_obs.obsnme.str.startswith("head_"),:].copy()
+    print(hd_obs.obsnme)
+    hd_obs.loc[:,"k"]= hd_obs.obsnme.apply(lambda x: int(x.split('_')[1]))
+    hd_obs.loc[:, "i"] = hd_obs.obsnme.apply(lambda x: int(x.split('_')[2]))
+    hd_obs.loc[:, "j"] = hd_obs.obsnme.apply(lambda x: int(x.split('_')[3]))
+    hd_obs.loc[:,"kij"] = hd_obs.apply(lambda x: (x.k,x.i,x.j),axis=1)
+    hd_obs.loc[:,"org_obgnme"] = hd_obs.apply(lambda x: "trgw_{0}_{1}_{2}".format(x.k,x.i,x.j),axis=1)
+
+    include = hd_obs.loc[hd_obs.kij.apply(lambda x: x in ukij),"obsnme"].tolist()
+    #include.append("gage_1")
+    otbl = pd.DataFrame(columns=include,index=np.arange(25)).T
+    wtbl = pd.DataFrame(columns=include,index=np.arange(25)).T
+    for uog in hd_obs.loc[include,"org_obgnme"].unique():
+        oname = hd_obs.loc[hd_obs.org_obgnme==uog,"obsnme"].values[0]
+        og_obs = ies_obs.loc[ies_obs.obgnme==uog,:]
+        og_obs.sort_index(inplace=True)
+        otbl.loc[oname,:] = og_obs.obsval.values
+        wtbl.loc[oname,:] = og_obs.weight.values
+
+    otbl.loc["gage_1",:] = ies_obs.loc[ies_obs.obsnme.str.contains("gage"),"obsval"].values
+    wtbl.loc["gage_1",:] = ies_obs.loc[ies_obs.obsnme.str.contains("gage"), "weight"].values
+    otbl.to_csv(os.path.join(da_t_d,"obs_cycle_tbl.csv"))
+    wtbl.to_csv(os.path.join(da_t_d, "weight_cycle_tbl.csv"))
+    da_pst.observation_data.loc[otbl.index.values,"weight"] = 1.0
     ies_pst.pestpp_options.pop("ies_num_reals",None)
     da_pst.pestpp_options.pop("da_num_reals",None)
     ies_pst.pestpp_options.pop("da_num_reals",None)
@@ -1341,17 +1408,19 @@ def compare_mf6_freyberg():
     ies_pst.pestpp_options["ies_verbose_level"] = 1
     ies_pst.pestpp_options.pop("ies_localizer",None)
     da_pst.pestpp_options.pop("ies_localizer", None)
-    ies_pst.pestpp_options["ies_autoadaloc"] = True
-    da_pst.pestpp_options["ies_autoadaloc"] = True
+    ies_pst.pestpp_options["ies_autoadaloc"] = False
+    da_pst.pestpp_options["ies_autoadaloc"] = False
     ies_pst.pestpp_options["ies_save_lambda_en"] = False
     da_pst.pestpp_options["ies_save_lambda_en"] = False
     ies_pst.pestpp_options["ies_drop_conflicts"] = True
     da_pst.pestpp_options["ies_drop_conflicts"] = True
+    da_pst.pestpp_options["ies_num_reals"] = 50
+    ies_pst.pestpp_options["ies_num_reals"] = 50
 
     #da_pst.pestpp_options["da_stop_cycle"] = 1
 
-    ies_pst.control_data.noptmax = 5
-    da_pst.control_data.noptmax = 5
+    ies_pst.control_data.noptmax = 3
+    da_pst.control_data.noptmax = 3
 
     # # run da
     da_pst.pestpp_options["ies_use_mda"] = True
@@ -1424,61 +1493,107 @@ def plot_compare(solution="ies",noptmax=1):
     if not os.path.exists(plt_d):
         os.mkdir(plt_d)
     ies_og_uvals.sort()
-    for cycle in range(num_cycles):
-        
 
-        fig,axes = plt.subplots(6,1,figsize=(10,10))
-        i = 0
-        for og in ies_og_uvals:
-            
-            ies_obs_og = ies_obs.loc[ies_obs.obgnme==og,:].copy()
-            
-            ies_obs_og.sort_values(by="datetime",inplace=True)
+
+    for og in ies_og_uvals:
+        ies_obs_og = ies_obs.loc[ies_obs.obgnme == og, :].copy()
+        ies_obs_og.sort_values(by="datetime", inplace=True)
+        da_obs_og = da_obs.loc[da_obs.org_obgnme == og, :]
+        fig_count = 0
+        for cycle in range(num_cycles):
+
             dts = ies_obs_og.datetime.values
-            ax = axes[i]
-            [ax.plot(dts,ies_pr_oe.loc[idx,ies_obs_og.obsnme],"0.5",alpha=0.5,lw=0.1) for idx in ies_pr_oe.index]
-            [ax.plot(dts,ies_pt_oe.loc[idx,ies_obs_og.obsnme],"b",alpha=0.5,lw=0.1) for idx in ies_pt_oe.index]
-            ax.plot(dts, ies_pr_oe.loc[ies_pr_oe.index[0], ies_obs_og.obsnme], "0.5", alpha=0.5, lw=0.1,label="prior real")
-            ax.plot(dts, ies_pt_oe.loc[ies_pt_oe.index[0], ies_obs_og.obsnme], "b", alpha=0.5, lw=0.1,label="post real")
-            ax.plot(dts,ies_obs_og.obsval,"r",label="truth")
-            ies_obs_nz = ies_obs_og.loc[ies_obs_og.weight>0,:]
 
-            ax.scatter(ies_obs_nz.datetime.values, ies_obs_nz.obsval, marker="^", color="r",s=50,zorder=10,label="obs")
+            def make_plot(axes):
+                ax = axes[0]
+                ax.set_title("smoother formulation, observation location: " + og)
+                [ax.plot(dts,ies_pr_oe.loc[idx,ies_obs_og.obsnme],"0.5",alpha=0.5,lw=0.1) for idx in ies_pr_oe.index]
+                [ax.plot(dts,ies_pt_oe.loc[idx,ies_obs_og.obsnme],"b",alpha=0.5,lw=0.1) for idx in ies_pt_oe.index]
+                ax.plot(dts, ies_pr_oe.loc[ies_pr_oe.index[0], ies_obs_og.obsnme], "0.5", alpha=0.5,
+                        lw=0.1,label="prior real")
+                ax.plot(dts, ies_pt_oe.loc[ies_pt_oe.index[0], ies_obs_og.obsnme], "b", alpha=0.5,
+                        lw=0.1,label="post real")
+                ax.plot(dts,ies_obs_og.obsval,"r",label="truth")
+                ies_obs_nz = ies_obs_og.loc[ies_obs_og.weight>0,:]
 
-            #print(og)
-            ax.set_title("smoother formulation, observation location: "+og,loc="left")
-            ax.legend(loc="upper right")
-            ax = axes[i+1]
-            da_obs_og = da_obs.loc[da_obs.org_obgnme==og,:]
-            ax.set_title("filter formulation (monthly cycles), observation location: "+da_obs_og.obsnme.values[0],loc="left")
-            ax.plot(dts,ies_obs_og.obsval,"r",label="truth")
-            ax.scatter(ies_obs_nz.datetime.values, ies_obs_nz.obsval, marker="^", color="r",s=50,zorder=10,label="obs")
-            post_labeled = False
-            for ccycle in range(cycle+1):
-                da_pr_oe = da_pr_dict[ccycle]
-                label = None
-                if ccycle == 0:
-                    label = "prior real"
-                ax.scatter([dts[ccycle] for _ in range(da_pr_oe.shape[0])],da_pr_oe.loc[:,da_obs_og.obsnme[0]].values,
-                           marker=".",color="0.5",label=label)
+                ax.scatter(ies_obs_nz.datetime.values, ies_obs_nz.obsval, marker="^", color="r",s=50,
+                           zorder=10,label="obs")
+                ax.legend(loc="upper right")
+                ax = axes[1]
 
-                if ccycle in da_pt_dict:
-                    da_pt_oe = da_pt_dict[ccycle]
+                ax.set_title("filter formulation (monthly cycles), observation location: " + da_obs_og.obsnme.values[0],
+                             loc="left")
+                ax.plot(dts, ies_obs_og.obsval, "r", label="truth")
+                ax.scatter(ies_obs_nz.datetime.values, ies_obs_nz.obsval, marker="^", color="r",
+                           s=50, zorder=10, label="obs")
+
+                post_labeled = False
+                for ccycle in range(cycle):
+                    da_pr_oe = da_pr_dict[ccycle]
                     label = None
-                    if not post_labeled:
-                        label = "post real"
-                        post_labeled = True
-                    ax.scatter([dts[ccycle] for _ in range(da_pt_oe.shape[0])],da_pt_oe.loc[:,da_obs_og.obsnme[0]].values,
-                               marker=".",color="b",label=label)
-            ax.set_ylim(axes[i].get_ylim())
-            ax.legend(loc="upper right")
-            i += 2
-        plt.tight_layout()
-        plt.savefig(os.path.join(plt_d,"compare_{0}_{1:03d}.png".format(solution,cycle)))
-        plt.close(fig)
+                    if ccycle == 0:
+                        label = "prior real"
+                    ax.scatter([dts[ccycle] for _ in range(da_pr_oe.shape[0])],
+                               da_pr_oe.loc[:, da_obs_og.obsnme[0]].values,
+                               marker=".", color="0.5", label=label)
 
-        os.system("ffmpeg -r 2 -i {0} -loop 0 -final_delay 100 -y {1}.mp4".
-                  format(os.path.join(plt_d,"compare_{0}_%03d.png".format(solution)),os.path.join(plt_d,solution)))
+                    if ccycle in da_pt_dict:
+                        da_pt_oe = da_pt_dict[ccycle]
+                        label = None
+                        if not post_labeled:
+                            label = "post real"
+                            post_labeled = True
+                        ax.scatter([dts[ccycle] for _ in range(da_pt_oe.shape[0])],
+                                   da_pt_oe.loc[:, da_obs_og.obsnme[0]].values,
+                                   marker=".", color="b", label=label)
+                    ax.set_ylim(axes[0].get_ylim())
+                    ax.legend(loc="upper right")
+                ax.set_title("observation location: "+og,loc="left")
+                ax.legend(loc="upper right")
+
+            # prior
+            fig, axes = plt.subplots(2, 1, figsize=(8, 8))
+            make_plot(axes)
+            da_pr_oe = da_pr_dict[cycle]
+            ax = axes[1]
+            ax.scatter([dts[cycle] for _ in range(da_pr_oe.shape[0])],
+                       da_pr_oe.loc[:, da_obs_og.obsnme[0]].values,
+                       marker=".", color="0.5")
+            ax.set_ylim(axes[0].get_ylim())
+            plt.tight_layout()
+            plt.savefig(os.path.join(plt_d, "compare_{0}_{1}_{2:03d}.png".format(og, solution, fig_count)))
+            plt.close(fig)
+            fig_count += 1
+
+            # posterior
+            if cycle in da_pt_dict:
+                da_pt_oe = da_pt_dict[cycle]
+                fig, axes = plt.subplots(2, 1, figsize=(8, 8))
+                make_plot(axes)
+                da_pr_oe = da_pr_dict[cycle]
+                ax.scatter([dts[cycle] for _ in range(da_pr_oe.shape[0])],
+                           da_pr_oe.loc[:, da_obs_og.obsnme[0]].values,
+                           marker=".", color="0.5")
+
+                ax.scatter([dts[cycle] for _ in range(da_pt_oe.shape[0])],
+                           da_pt_oe.loc[:, da_obs_og.obsnme[0]].values,
+                           marker=".", color="b")
+                ax.set_ylim(axes[0].get_ylim())
+                plt.tight_layout()
+                plt.savefig(os.path.join(plt_d, "compare_{0}_{1}_{2:03d}.png".format(og, solution, fig_count)))
+                plt.close(fig)
+        break
+
+
+
+            # posterior
+
+
+    for og in ies_og_uvals:
+        os.system("ffmpeg -r 1 -i {0} -loop 1 -final_delay 100 -y -vf fps=25 {1}.mp4".
+              format(os.path.join(plt_d,"compare_{0}_{1}_%03d.png".format(og,solution)),
+                     os.path.join(plt_d,solution+"_"+og)))
+        break
 
 if __name__ == "__main__":
     
@@ -1498,6 +1613,6 @@ if __name__ == "__main__":
     #seq_10par_xsec_state_est_test()
     #seq_10par_xsec_fixed_test()
     compare_mf6_freyberg()
-    plot_compare("glm",noptmax=4)
-    plot_compare("mda",noptmax=4)
+    #plot_compare("glm",noptmax=3)
+    #plot_compare("mda",noptmax=3)
 

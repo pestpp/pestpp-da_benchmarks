@@ -1359,7 +1359,7 @@ def compare_mf6_freyberg():
     gage_obs = ies_obs.loc[ies_obs.obsnme.apply(lambda x: x.startswith("gage")),:].copy()
     gage_obs.sort_index(inplace=True)
 
-    mults = np.linspace(1.5,0.5,gage_obs.shape[0])
+    mults = np.linspace(1.75,0.25,gage_obs.shape[0])
     new_vals = gage_obs.obsval.values * mults
 
     # import matplotlib.pyplot as plt
@@ -1723,7 +1723,7 @@ if __name__ == "__main__":
     
     
     #shutil.copy2(os.path.join("..","exe","windows","x64","Debug","pestpp-da.exe"),os.path.join("..","bin","pestpp-da.exe"))
-    seq_10par_cycle_parse_test()
+    #seq_10par_cycle_parse_test()
     #seq_10par_xsec_hotstart_test()
     #seq_10par_diff_obspar_cycle_test()
     #da_mf6_freyberg_test_1()

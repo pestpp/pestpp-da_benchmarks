@@ -5,3 +5,5 @@ To apply pestpp-da, the model was converted to a single stress period model and 
 Historic observations are available for stress periods 2-13 at two groundwater level locations and one surface-water flow location. These were generated from the "truth" model described in the pest++ v5 usgs report. 
 
 The last 12 stress periods are treated as a forecast period as no observations are assimilated but groundwater levels, surface water flows and surface-water/groundwater exchanges are monitored through observations in the control file.  In this way, users can experiement with different pestpp-da settings and compare the results of a sequential DA (iterative filter formualation) with pestpp-ies (e.g. iterative smoother formulation) results. 
+
+To run this example, you need to have pestpp-da and mf6 (named "mf6") in your path or in this directory.

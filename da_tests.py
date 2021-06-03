@@ -1280,7 +1280,7 @@ def seq_10par_cycle_parse_test():
                                 num_workers=pst.pestpp_options["da_num_reals"], worker_root=test_d, port=port,
                                 master_dir=m_d, verbose=True)
 
-    final_oe = os.path.join(m_d,"pest_seq.global.{0}.oe.csv".format(mx_cycle))
+    final_oe = os.path.join(m_d,"pest_seq.global.{0}.oe.csv".format(mx_cycle-1))
     assert os.path.exists(final_oe),final_oe
 
 
@@ -1723,7 +1723,7 @@ if __name__ == "__main__":
     
     
     #shutil.copy2(os.path.join("..","exe","windows","x64","Debug","pestpp-da.exe"),os.path.join("..","bin","pestpp-da.exe"))
-    #seq_10par_cycle_parse_test()
+    seq_10par_cycle_parse_test()
     #seq_10par_xsec_hotstart_test()
     #seq_10par_diff_obspar_cycle_test()
     #da_mf6_freyberg_test_1()

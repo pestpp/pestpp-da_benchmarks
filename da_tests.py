@@ -1223,7 +1223,7 @@ def seq_10par_cycle_parse_test():
 
     pst.model_output_data.loc[:,"cycle"] = -1
     mod = pst.model_output_data
-    mod.loc[mod.pest_file.str.contains("firstcycle"), "cycle"] = -1
+    mod.loc[mod.pest_file.str.contains("firstcycle"), "cycle"] = 0
 
     def get_loc(pst):
 
@@ -1275,14 +1275,16 @@ def seq_10par_cycle_parse_test():
 
     pst.write(os.path.join(t_d,"pest_seq.pst"),version=2)
     m_d = os.path.join(test_d, "master_da_cycle_parse")
+
     pyemu.os_utils.start_workers(t_d, exe_path.replace("ies", "da"), "pest_seq.pst",
                                 num_workers=pst.pestpp_options["da_num_reals"], worker_root=test_d, port=port,
                                 master_dir=m_d, verbose=True)
 
+    final_oe = os.path.join(m_d,"pest_seq.global.{0}.oe.csv".format(mx_cycle))
+    assert os.path.exists(final_oe),final_oe
+
 
 def compare_mf6_freyberg():
-
-
     def mod_tdis_sto(org_t_d,t_d):
         tdis_file = "freyberg6.tdis"
         lines = open(os.path.join(org_t_d,tdis_file),'r').readlines()
@@ -1351,11 +1353,26 @@ def compare_mf6_freyberg():
 
     # turn on all of the org freyberg model obs locations for the first year
     ies_obs = ies_pst.observation_data
-    ies_obs.loc[:,"weight"] = 0.0
+    # ies_obs.loc[:,"weight"] = 0.0
     tr_obs = ies_obs.loc[ies_obs.obsnme.apply(lambda x: x.startswith("trgw") and "2017" not in x),:].copy()
-    ies_obs.loc[tr_obs.obsnme,"weight"] = 6
-    gage_obs = ies_obs.loc[ies_obs.obsnme.apply(lambda x: x.startswith("gage") and "2017" not in x),:].copy()
-    ies_obs.loc[gage_obs.obsnme,"weight"] = 1.0 / (ies_obs.loc[gage_obs.obsnme,"obsval"] * 0.15)
+    # ies_obs.loc[tr_obs.obsnme,"weight"] = 6
+    gage_obs = ies_obs.loc[ies_obs.obsnme.apply(lambda x: x.startswith("gage")),:].copy()
+    gage_obs.sort_index(inplace=True)
+
+    mults = np.linspace(1.5,0.5,gage_obs.shape[0])
+    new_vals = gage_obs.obsval.values * mults
+
+    # import matplotlib.pyplot as plt
+    # plt.plot(gage_obs.obsval.values)
+    # plt.plot(new_vals)
+    # plt.show()
+    # return
+    ies_obs.loc[:,"org_obsval"] = np.NaN
+    ies_obs.loc[gage_obs.obsnme,"org_obsval"] = gage_obs.obsval.values
+    ies_obs.loc[gage_obs.obsnme,"obsval"] = new_vals
+
+    #ies_obs.loc[[o for o in ies_pst.nnz_obs_names if not "gage" in o],"weight"] = 50
+    #ies_obs.loc[[o for o in ies_pst.nnz_obs_names if "gage" in o],"weight"] = 1.0 / (ies_obs.loc[[o for o in ies_pst.nnz_obs_names if "gage" in o],"obsval"] * 0.15)
 
     # use this to check the phi contribs
     # ies_pst.control_data.noptmax = 0
@@ -1427,13 +1444,13 @@ def compare_mf6_freyberg():
     da_pst.write(os.path.join(da_t_d, "freyberg6_run_da.pst"), version=2)
     da_m_d_mda = os.path.join(da_test_d, "master_da_mda")
     pyemu.os_utils.start_workers(da_t_d, exe_path.replace("-ies", "-da"), "freyberg6_run_da.pst",
-                                 num_workers=10, worker_root=da_test_d, port=port,
+                                 num_workers=20, worker_root=da_test_d, port=port,
                                  master_dir=da_m_d_mda, verbose=True)
     da_pst.pestpp_options["ies_use_mda"] = False
     da_pst.write(os.path.join(da_t_d,"freyberg6_run_da.pst"),version=2)
     da_m_d_glm = os.path.join(da_test_d, "master_da_glm")
     pyemu.os_utils.start_workers(da_t_d, exe_path.replace("-ies","-da"), "freyberg6_run_da.pst",
-                                num_workers=10, worker_root=da_test_d, port=port,
+                                num_workers=20, worker_root=da_test_d, port=port,
                                 master_dir=da_m_d_glm, verbose=True)
 
     # run ies    
@@ -1441,14 +1458,14 @@ def compare_mf6_freyberg():
     ies_pst.write(os.path.join(ies_t_d,"freyberg6_run_ies.pst"),version=2)
     ies_m_d_glm = os.path.join(ies_test_d, "master_ies_glm")
     pyemu.os_utils.start_workers(ies_t_d, exe_path.replace("-da","-ies"), "freyberg6_run_ies.pst",
-                                num_workers=10, worker_root=ies_test_d, port=port,
+                                num_workers=20, worker_root=ies_test_d, port=port,
                                 master_dir=ies_m_d_glm, verbose=True)
 
     ies_pst.pestpp_options["ies_use_mda"] = True
     ies_pst.write(os.path.join(ies_t_d,"freyberg6_run_ies.pst"),version=2)
     ies_m_d_mda = os.path.join(ies_test_d, "master_ies_mda")
     pyemu.os_utils.start_workers(ies_t_d, exe_path.replace("-da","-ies"), "freyberg6_run_ies.pst",
-                                num_workers=10, worker_root=ies_test_d, port=port,
+                                num_workers=20, worker_root=ies_test_d, port=port,
                                 master_dir=ies_m_d_mda, verbose=True)
 
 
@@ -1506,7 +1523,7 @@ def plot_compare(solution="ies",noptmax=1):
 
             def make_plot(axes):
                 ax = axes[0]
-                ax.set_title("smoother formulation, observation location: " + og)
+                ax.set_title("smoother formulation, observation location: " + og, loc="left")
                 [ax.plot(dts,ies_pr_oe.loc[idx,ies_obs_og.obsnme],"0.5",alpha=0.5,lw=0.1) for idx in ies_pr_oe.index]
                 [ax.plot(dts,ies_pt_oe.loc[idx,ies_obs_og.obsnme],"b",alpha=0.5,lw=0.1) for idx in ies_pt_oe.index]
                 ax.plot(dts, ies_pr_oe.loc[ies_pr_oe.index[0], ies_obs_og.obsnme], "0.5", alpha=0.5,
@@ -1548,8 +1565,8 @@ def plot_compare(solution="ies",noptmax=1):
                                    marker=".", color="b", label=label)
                     ax.set_ylim(axes[0].get_ylim())
                     ax.legend(loc="upper right")
-                ax.set_title("observation location: "+og,loc="left")
-                ax.legend(loc="upper right")
+                #ax.set_title("observation location: "+og,loc="left")
+                #ax.legend(loc="upper right")
 
             # prior
             fig, axes = plt.subplots(2, 1, figsize=(8, 8))
@@ -1605,10 +1622,13 @@ def da_pareto_demo():
     #pyemu.os_utils.run("{0} freyberg6_run_ies.pst".format(exe_path.replace("-da","-ies")),cwd=t_d)
 
     obs = pst.observation_data
-    mx_weight = 0.05
+    mx_weight = .05
+    mn_weight = 0.05
+    mn_foreval = -500
+    mx_foreval = 500
     fore_name = "headwater_20171031"
     obs.loc[fore_name,"weight"] = mx_weight
-    obs.loc[fore_name,"obsval"] = 500
+    obs.loc[fore_name,"obsval"] = mx_foreval
 
     # to find a good max forecast weight
     # import matplotlib.pyplot as plt
@@ -1616,21 +1636,36 @@ def da_pareto_demo():
     # plt.show()
     # return
 
-    wtbl = pd.DataFrame(index = pst.nnz_obs_names,columns=np.arange(20))
+    ncycle = 10
+    wtbl = pd.DataFrame(index = pst.nnz_obs_names,columns=np.arange(ncycle))
+    otbl = pd.DataFrame(index=pst.nnz_obs_names, columns=np.arange(ncycle))
     for col in wtbl.columns:
         wtbl.loc[pst.nnz_obs_names,col] = obs.loc[pst.nnz_obs_names,"weight"].values
-    hw_wghts = np.linspace(0.0,mx_weight,wtbl.shape[1])
-    wtbl.loc[fore_name,:] = hw_wghts
-    print(hw_wghts)
+        otbl.loc[pst.nnz_obs_names, col] = obs.loc[pst.nnz_obs_names, "obsval"].values
+
+    fore_wghts = np.linspace(mn_weight,mx_weight,ncycle)
+    fore_vals = np.linspace(mn_foreval,mx_foreval,ncycle)
+    wtbl.loc[fore_name,:] = fore_wghts
+    otbl.loc[fore_name,:] = fore_vals
+
     wtbl.to_csv(os.path.join(t_d,"pareto_weight_table.csv"))
+    otbl.to_csv(os.path.join(t_d, "pareto_obs_table.csv"))
+
     pst.pestpp_options["da_weight_cycle_table"] = "pareto_weight_table.csv"
+    pst.pestpp_options["da_observation_cycle_table"] = "pareto_obs_table.csv"
+
     pst.control_data.noptmax = 3
+    pst.pestpp_options["da_verbose_level"] = 3
+    #pst.pestpp_options["ies_num_reals"] = 20
+    #pst.pestpp_options["ies_lambda_mults"] = 1.0
+    #pst.pestpp_options["lambda_scale_fac"] = 1.0
     pst.pestpp_options.pop("ies_localizer",None)
     pst.pestpp_options["ies_autoadaloc"] = False
+    pst.pestpp_options["ies_no_noise"] = True
     pst.write(os.path.join(t_d,"freyberg6_run_ies_pareto.pst"))
     m_d = os.path.join(test_d,"master_ies_pareto")
     pyemu.os_utils.start_workers(t_d, exe_path, "freyberg6_run_ies_pareto.pst",
-                                 num_workers=10, worker_root=test_d, port=port,
+                                 num_workers=25, worker_root=test_d, port=port,
                                  master_dir=m_d, verbose=True)
 
 
@@ -1648,18 +1683,40 @@ def plot_da_pareto_demo():
     fname = "headwater_20171031"
     obs.loc[fname,"weight"] = 0.0
     import matplotlib.pyplot as plt
-    fig,ax = plt.subplots(1,1,figsize=(10,10))
+    #fig,ax = plt.subplots(1,1,figsize=(10,10))
+    fig = plt.figure(constrained_layout=True,figsize=(8,8))
+    gs = fig.add_gridspec(4,4)
+    ax = fig.add_subplot(gs[:-1,1:])
+    ax_phi = fig.add_subplot(gs[:-1,0])
+    ax_fore = fig.add_subplot(gs[-1,1:])
     cmap = plt.get_cmap("jet")
+    bins = 10
     for cycle in cycles:
         oe = pyemu.ObservationEnsemble.from_csv(pst=pst,filename=global_oe_files[cycle])
         fvec = oe.loc[:,fname]
         pvec = oe.phi_vector
         c = cmap(cycle/max(cycles))
-        ax.scatter(fvec.mean(),pvec.mean(),marker=".",color=c,label="cycle {0}".format(cycle))
-    ax.legend(loc="upper right")
-    ax.set_xlabel("{0} sw-gw flux".format(fname))
-    ax.set_ylabel("$\phi$")
-    plt.show()
+        ax.scatter(fvec,pvec,marker=".",color=c,label="cycle {0}".format(cycle))
+        ax_fore.hist(fvec,bins=bins,facecolor=c,edgecolor="none",alpha=0.5)
+        ax_phi.hist(pvec, bins=bins, facecolor=c, edgecolor="none", alpha=0.5,orientation="horizontal")
+    ax.set_title("B) ensemble-based simulated surface-water/groundwater exchange (SGE) vs $\phi$",loc="left")
+    ax_phi.set_title("A) marginal $\phi$ PDFs",loc="left")
+    ax_fore.set_title("C) marginal SGE PDFs",loc="left")
+    ax.legend(loc="upper left")
+    ax_phi.set_ylim(ax.get_ylim())
+    ax_phi.set_xticks([])
+    ax_fore.set_xlim(ax.get_xlim())
+    ax_fore.set_yticks([])
+    ax_fore.set_xlabel("sw-gw flux during low-flow period (negative is from gw to sw)".format(fname))
+    ax_phi.set_ylabel("sum of squared-weighted residuals ($\phi$)")
+    ax.set_yticklabels([])
+    ax.set_xticklabels([])
+    ax.grid()
+    #ax.set_title("A) A demo of direct hypothesis testing for the freyberg model\n"+
+    #             "   For each cycle, the value and weight of the forecast was varied\n"+
+    #             "   to force the model reduce the gw contrib to sw", loc="left")
+    plt.savefig(case+".pdf")
+    plt.close(fig)
 
 
 if __name__ == "__main__":
@@ -1679,9 +1736,9 @@ if __name__ == "__main__":
     #da_mf6_freyberg_test_3()
     #seq_10par_xsec_state_est_test()
     #seq_10par_xsec_fixed_test()
-    #compare_mf6_freyberg()
-    #plot_compare("glm",noptmax=3)
-    #plot_compare("mda",noptmax=3)
-    da_pareto_demo()
-    plot_da_pareto_demo()
+    compare_mf6_freyberg()
+    plot_compare("glm",noptmax=3)
+    plot_compare("mda",noptmax=3)
+    #da_pareto_demo()
+    #plot_da_pareto_demo()
 

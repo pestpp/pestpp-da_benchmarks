@@ -1359,7 +1359,7 @@ def compare_mf6_freyberg():
     gage_obs = ies_obs.loc[ies_obs.obsnme.apply(lambda x: x.startswith("gage")),:].copy()
     gage_obs.sort_index(inplace=True)
 
-    mults = np.linspace(1.75,0.25,gage_obs.shape[0])
+    mults = np.linspace(0.5,0.5,gage_obs.shape[0])
     new_vals = gage_obs.obsval.values * mults
 
     # import matplotlib.pyplot as plt
@@ -1524,8 +1524,8 @@ def plot_compare(solution="ies",noptmax=1):
             def make_plot(axes):
                 ax = axes[0]
                 ax.set_title("smoother formulation, observation location: " + og, loc="left")
-                [ax.plot(dts,ies_pr_oe.loc[idx,ies_obs_og.obsnme],"0.5",alpha=0.5,lw=0.1) for idx in ies_pr_oe.index]
-                [ax.plot(dts,ies_pt_oe.loc[idx,ies_obs_og.obsnme],"b",alpha=0.5,lw=0.1) for idx in ies_pt_oe.index]
+                [ax.plot(dts,ies_pr_oe.loc[idx,ies_obs_og.obsnme],"0.5",alpha=0.5,lw=0.25) for idx in ies_pr_oe.index]
+                [ax.plot(dts,ies_pt_oe.loc[idx,ies_obs_og.obsnme],"b",alpha=0.5,lw=0.5) for idx in ies_pt_oe.index]
                 ax.plot(dts, ies_pr_oe.loc[ies_pr_oe.index[0], ies_obs_og.obsnme], "0.5", alpha=0.5,
                         lw=0.1,label="prior real")
                 ax.plot(dts, ies_pt_oe.loc[ies_pt_oe.index[0], ies_obs_og.obsnme], "b", alpha=0.5,
@@ -1607,9 +1607,13 @@ def plot_compare(solution="ies",noptmax=1):
 
 
     for og in ies_og_uvals:
-        os.system("ffmpeg -r 1 -i {0} -loop 1 -final_delay 100 -y -vf fps=25 {1}.mp4".
-              format(os.path.join(plt_d,"compare_{0}_{1}_%03d.png".format(og,solution)),
-                     os.path.join(plt_d,solution+"_"+og)))
+        pyemu.os_utils.run("ffmpeg -i compare_{0}_{1}_024.png -vf palettegen=16 -y palette.png".format(og,solution),cwd=plt_d)
+        cmd = "ffmpeg -i compare_{0}_{1}_%03d.png -i palette.png -y -filter_complex ".format(og,solution)
+        cmd += "\"fps=100,scale=720:-1:flags=lanczos[x];[x][1:v]paletteuse\" -y  -final_delay 150 {0}_{1}.gif".format(og,solution)
+        pyemu.os_utils.run(cmd,cwd=plt_d)
+        #os.system("ffmpeg -r 1 -i {0} -loop 1 -final_delay 100 -y -vf fps=25 {1}.mp4".
+        #      format(os.path.join(plt_d,"compare_{0}_{1}_%03d.png".format(og,solution)),
+        #             os.path.join(plt_d,solution+"_"+og)))
 
 
 def da_pareto_demo():

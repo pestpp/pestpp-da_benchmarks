@@ -1762,6 +1762,7 @@ def seq_10par_xsec_double_state_test():
     obs.loc[obs.obsnme.str.startswith("h01"), "weight"] = 1.0
     obs.loc[:, "state_par_link"] = ""
     obs.loc[obs.obgnme == "head1", "state_par_link"] = strt_pars
+    ostates = obs.loc[obs.obgnme == "head1","obsnme"]
     obs.loc[:, "cycle"] = -1
 
     pst.control_data.noptmax = 1
@@ -1822,15 +1823,18 @@ def seq_10par_xsec_double_state_test():
                                  master_dir=m_d, verbose=True)
 
     # first check the global pe's after cycles with and without assimilation
-    pe2 = pd.read_csv(os.path.join(m_d,"pest_seq.global.2.pe.csv"),index_col=0)
+    pe0 = pd.read_csv(os.path.join(m_d,"pest_seq.global.0.pe.csv"),index_col=0)
     pe1 = pd.read_csv(os.path.join(m_d,"pest_seq.global.1.pe.csv"),index_col=0)
-    d = np.abs(pe2.loc[:,final_state_pars].values - pe2.loc[:,init_state_pars].values).sum().sum()
+    d = np.abs(pe0.loc[:,final_state_pars].values - pe1.loc[:,init_state_pars].values).sum().sum()
     print(d)
     assert d < 1.0e-3
-    d = np.abs(pe2.loc[:, final_state_pars].values - pe1.loc[:, final_state_pars].values).sum().sum()
-    assert d < 1.0e-3
-    pe3 = pd.read_csv(os.path.join(m_d,"pest_seq.global.3.pe.csv"),index_col=0)
 
+    pe2 = pd.read_csv(os.path.join(m_d, "pest_seq.global.2.pe.csv"), index_col=0)
+    # these should be the same since we are not using simulated states (even tho we iterated during cycle 1)
+    d = np.abs(pe2.loc[:, init_state_pars].values - pe1.loc[:, final_state_pars].values).sum().sum()
+    assert d < 1.0e-3
+
+    pe3 = pd.read_csv(os.path.join(m_d,"pest_seq.global.3.pe.csv"),index_col=0)
     # these should be diff since we assimilated during cycle 3
     d = np.abs(pe3.loc[:, final_state_pars].values - pe3.loc[:, init_state_pars].values).sum().sum()
     print(d)
@@ -1841,6 +1845,20 @@ def seq_10par_xsec_double_state_test():
     print(d)
     assert d < 1.0e-3
 
+
+    oe0 = pd.read_csv(os.path.join(m_d,"pest_seq.global.0.oe.csv"),index_col=0)
+    # the final state pars should equal the obs states
+    d = np.abs(oe0.loc[:,ostates].values - pe0.loc[:,final_state_pars].values).sum().sum()
+    print(d)
+    assert d < 1.0e-3
+    # the init state pars should be diff than the obs states
+    d = np.abs(oe0.loc[:, ostates].values - pe0.loc[:, init_state_pars].values).sum().sum()
+    assert d > 1.0e-3
+
+    oe00 = pd.read_csv(os.path.join(m_d, "pest_seq.0.0.obs.csv"), index_col=0)
+    # these should be the same since we transferred from oe to pe after the initialization
+    d = np.abs(oe00.loc[:, ostates].values - pe0.loc[:, final_state_pars].values).sum().sum()
+    assert d < 1.0e-3
 
 
 def seq_10par_xsec_double_state_test_2():
@@ -1880,6 +1898,7 @@ def seq_10par_xsec_double_state_test_2():
     obs.loc[obs.obsnme.str.startswith("h01"), "weight"] = 1.0
     obs.loc[:, "state_par_link"] = ""
     obs.loc[obs.obgnme == "head1", "state_par_link"] = strt_pars
+    ostates = obs.loc[obs.obgnme == "head1", "obsnme"]
     obs.loc[:, "cycle"] = -1
 
     pst.control_data.noptmax = 1
@@ -1942,22 +1961,37 @@ def seq_10par_xsec_double_state_test_2():
     # first check the global pe's after cycles with and without assimilation
     pe2 = pd.read_csv(os.path.join(m_d,"pest_seq.global.2.pe.csv"),index_col=0)
     pe1 = pd.read_csv(os.path.join(m_d,"pest_seq.global.1.pe.csv"),index_col=0)
-    d = np.abs(pe2.loc[:,final_state_pars].values - pe2.loc[:,init_state_pars].values).sum().sum()
+    # cycle 1 final states should equal cycle 2 initial states since we are not using simulated states
+    d = np.abs(pe1.loc[:,final_state_pars].values - pe2.loc[:,init_state_pars].values).sum().sum()
     print(d)
     assert d < 1.0e-3
+
+    # cycle 1 final states should be diff than cycle 2 final states - even tho we didnt assimilate in
+    # cycle 2, the model was advanced forward and the sim states were transfer to final par states after
+    # initialization
     d = np.abs(pe2.loc[:, final_state_pars].values - pe1.loc[:, final_state_pars].values).sum().sum()
-    assert d < 1.0e-3
+    assert d > 1.0e-3
     pe3 = pd.read_csv(os.path.join(m_d,"pest_seq.global.3.pe.csv"),index_col=0)
 
-    # these should be diff since we assimilated during cycle 3
-    d = np.abs(pe3.loc[:, final_state_pars].values - pe3.loc[:, init_state_pars].values).sum().sum()
-    print(d)
-    assert d > 1.0e-3
-
-    pe4 = pd.read_csv(os.path.join(m_d,"pest_seq.global.4.pe.csv"),index_col=0)
-    d = np.abs(pe3.loc[:, final_state_pars].values - pe4.loc[:, init_state_pars].values).sum().sum()
+    # should be equal since not using simulated states
+    d = np.abs(pe3.loc[:, init_state_pars].values - pe2.loc[:, final_state_pars].values).sum().sum()
     print(d)
     assert d < 1.0e-3
+
+    pe4 = pd.read_csv(os.path.join(m_d,"pest_seq.global.4.pe.csv"),index_col=0)
+    # this is an interesting check: by 5 cycles, the model should have
+    # converged on the equilibrium values so init should equal final
+
+    d = np.abs(pe4.loc[:, final_state_pars].values - pe4.loc[:, init_state_pars].values).sum().sum()
+    print(d)
+    assert d < 1.0e-3
+    # and sim states should equal init/final states
+    oe4 = pd.read_csv(os.path.join(m_d, "pest_seq.global.4.oe.csv"), index_col=0)
+    # the final state pars should equal the obs states
+    d = np.abs(oe4.loc[:, ostates].values - pe4.loc[:, final_state_pars].values).sum().sum()
+    print(d)
+    assert d < 1.0e-3
+
 
 
 
@@ -1984,5 +2018,6 @@ if __name__ == "__main__":
     #plot_compare("mda",noptmax=3)
     #da_pareto_demo()
     #plot_da_pareto_demo()
+    #seq_10par_xsec_double_state_test()
     seq_10par_xsec_double_state_test_2()
 

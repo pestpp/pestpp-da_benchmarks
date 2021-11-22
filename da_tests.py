@@ -2096,6 +2096,14 @@ def seq_10par_xsec_double_state_test_3():
     
     
 
+def pump_test_2():
+    test_d = "pump_test_2"
+    t_d = os.path.join(test_d, "template")
+    m_d = os.path.join(test_d,"master_da")
+    pyemu.os_utils.start_workers(t_d,exe_path,"es_pmp.pst",num_workers=5,worker_root=test_d,
+        master_dir=m_d)
+    
+
 
 if __name__ == "__main__":
     
@@ -2122,5 +2130,6 @@ if __name__ == "__main__":
     #seq_10par_xsec_double_state_test()
     #seq_10par_xsec_double_state_test_2()
 
-    seq_10par_xsec_double_state_test_3()
+    #seq_10par_xsec_double_state_test_3()
+    pump_test_2()
 

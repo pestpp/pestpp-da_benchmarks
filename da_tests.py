@@ -1993,6 +1993,8 @@ def seq_10par_xsec_double_state_test_2():
     print(d)
     assert d < 1.0e-3
 
+
+
 def seq_10par_xsec_double_state_test_3():
     """a test of carrying but not using a subset of final states"""
     test_d = "10par_xsec"
@@ -2105,6 +2107,128 @@ def pump_test_2():
     
 
 
+def seq_10par_diff_state_cycle_test():
+
+    test_d = "10par_xsec"
+    t_d_org = os.path.join(test_d, "template")
+    t_d = os.path.join(test_d, "template_double")
+    if os.path.exists(t_d):
+        shutil.rmtree(t_d)
+    shutil.copytree(t_d_org,t_d)
+    org_init_state_tpl_file = os.path.join(t_d,"strt_Layer_1.ref.tpl")
+    lines = open(org_init_state_tpl_file,'r').readlines()
+    pst = pyemu.Pst(os.path.join(t_d, "pest.pst"))
+    pst.drop_parameters(org_init_state_tpl_file,pst_path=".")
+    pst.parameter_data.loc[:, "cycle"] = -1
+    par = pst.parameter_data
+
+    par.loc[:,"state_par_link"] = np.NaN
+    pst.model_input_data.loc[:, "cycle"] = -1
+    pst.model_output_data.loc[:, "cycle"] = -1
+    mx_cycle = 5
+    org_hds_ins_file = os.path.join(t_d,"10par_xsec.hds.ins")
+    ins_lines = open(org_hds_ins_file,'r').readlines()
+    pst.observation_data.loc[:,"cycle"] = -1
+    pst.observation_data.loc[:,"state_par_link"] = ""
+
+    pst.drop_observations(org_hds_ins_file,pst_path=".")
+    pst.model_input_data.loc[:, "cycle"] = -1
+    pst.model_output_data.loc[:, "cycle"] = -1
+
+    for cycle in range(mx_cycle):
+        init_state_tpl_file = org_init_state_tpl_file.replace("strt_","cycle{0}_strt".format(cycle))
+        final_state_tpl_file = init_state_tpl_file.replace("strt","final_states")
+        with open(init_state_tpl_file,'w') as f:
+            for line in lines[:2]:
+                f.write(line.replace("_","cycle{0}_".format(cycle)))
+        with open(final_state_tpl_file,'w') as f:
+            for line in lines[:2]:
+                f.write(line.replace("_","cycle{0}_final_").format(cycle))
+
+        df_init = pst.add_parameters(init_state_tpl_file,pst_path=".",in_file=os.path.join(t_d,"strt_Layer_1.ref"))
+        df = pst.add_parameters(final_state_tpl_file,pst_path=".")
+        df.sort_values(by="parnme",inplace=True)
+        par = pst.parameter_data
+        #print(par.parnme)
+        init_state_pars = df.parnme.str.replace("final_","").tolist()
+        final_state_pars = [i.replace("_","_final_") for i in init_state_pars]
+        par.loc[init_state_pars,"parval1"] = 2
+        par.loc[init_state_pars, "parlbnd"] = 0.1
+        par.loc[init_state_pars, "parubnd"] = 10.0
+
+        par.loc[final_state_pars,"parval1"] = par.loc[init_state_pars,"parval1"].values
+        par.loc[final_state_pars, "parubnd"] = par.loc[init_state_pars, "parubnd"].values
+        par.loc[final_state_pars, "parlbnd"] = par.loc[init_state_pars, "parlbnd"].values
+        par.loc[final_state_pars, "pargp"] = "final_states"
+        par.loc[init_state_pars,"cycle"] = cycle
+        par.loc[final_state_pars,"cycle"] = cycle
+        par.loc[final_state_pars,"state_par_link"] = init_state_pars
+        pst.model_input_data.loc["./" + os.path.split(init_state_tpl_file)[-1],"cycle"] = cycle
+        pst.model_input_data.loc["./" + os.path.split(final_state_tpl_file)[-1],"cycle"] = cycle
+
+        cycle_ins_file = org_hds_ins_file.replace(".hds","_cycle{0}.hds".format(cycle))
+        with open(cycle_ins_file,'w') as f:
+            for line in ins_lines:
+                if line.strip() == "":
+                    break
+                f.write(line.replace("!h0","!cycle{0}_h0").format(cycle))
+        df_ins = pst.add_observations(cycle_ins_file,out_file=os.path.join(t_d,"10par_xsec.hds"),pst_path=".")
+        pst.observation_data.loc[df_ins.obsnme,"cycle"] = cycle
+        pst.observation_data.loc[df_ins.obsnme,"weight"] = 0
+        pst.model_output_data.loc["./"+os.path.split(cycle_ins_file)[-1],"cycle"] = cycle
+        #print(df_init.parnme.iloc[:df_ins.shape[0]].values)
+        pst.observation_data.loc[df_ins.obsnme[:10].values,"state_par_link"] = df_init.parnme.iloc[:df_ins.shape[0]].sort_values().values
+    #print(pst.observation_data.state_par_link)
+
+
+    #print(pst.model_input_data)
+    #print(pst.model_output_data)
+    #return
+    #strt_pars = par.loc[par.pargp == "strt", "parnme"].tolist()
+    #obs = pst.observation_data
+    #obs.loc[obs.obsnme.str.startswith("h01"), "weight"] = 1.0
+    #obs.loc[:, "state_par_link"] = ""
+    #obs.loc[obs.obgnme == "head1", "state_par_link"] = strt_pars
+    #ostates = obs.loc[obs.obgnme == "head1", "obsnme"]
+    #obs.loc[:, "cycle"] = -1
+
+    pst.control_data.noptmax = 1
+
+    
+    # dont change these settings - they are hard coded below in the testing
+
+    # cycles = np.arange(0, mx_cycle)
+    # odf = pd.DataFrame(index=cycles, columns=pst.nnz_obs_names)
+    # odf.loc[:, :] = obs.loc[pst.nnz_obs_names, "obsval"].values
+    # odf.T.to_csv(os.path.join(t_d, "obs_cycle_tbl.csv"))
+    # wdf = pd.DataFrame(index=cycles, columns=pst.nnz_obs_names)
+    # wdf.loc[:, :] = 0.0
+    # wdf.iloc[1, [3, 5]] = 1.0
+    # wdf.iloc[3, :] = 1.0
+    # wdf.T.to_csv(os.path.join(t_d, "weight_cycle_tbl.csv"))
+
+    obs = pst.observation_data
+    obs.loc[obs.obsnme.apply(lambda x: ("cycle1" in x or "cycle2" in x ) and ("h01_02" in x or "h01_04" in x)),"weight"] = 1.0
+
+    pst.pestpp_options["lambda_scale_fac"] = 1.0
+    pst.pestpp_options["da_lambda_mults"] = 1.0
+    pst.pestpp_options["da_use_mda"] = True
+    #pst.pestpp_options["da_observation_cycle_table"] = "obs_cycle_tbl.csv"
+    #pst.pestpp_options["da_weight_cycle_table"] = "weight_cycle_tbl.csv"
+    pst.pestpp_options["da_num_reals"] = 10
+    pst.pestpp_options["da_use_simulated_states"] = True
+
+    pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
+    m_d = os.path.join(test_d, "master_da_double")
+    pyemu.os_utils.start_workers(t_d, exe_path.replace("ies", "da"), "pest_seq.pst",
+                                 num_workers=pst.pestpp_options["da_num_reals"], worker_root=test_d, port=port,
+                                 master_dir=m_d, verbose=True)
+
+    # first check the global pe's after cycles with and without assimilation
+    #pe2 = pd.read_csv(os.path.join(m_d,"pest_seq.global.2.pe.csv"),index_col=0)
+    #pe1 = pd.read_csv(os.path.join(m_d,"pest_seq.global.1.pe.csv"),index_col=0)
+
+
 if __name__ == "__main__":
     
     
@@ -2131,5 +2255,6 @@ if __name__ == "__main__":
     #seq_10par_xsec_double_state_test_2()
 
     #seq_10par_xsec_double_state_test_3()
-    pump_test_2()
+    #pump_test_2()
+    seq_10par_diff_state_cycle_test()
 

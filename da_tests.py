@@ -2008,7 +2008,7 @@ def seq_10par_xsec_double_state_test_3():
     lines = open(init_state_tpl_file,'r').readlines()
     final_state_tpl_file = init_state_tpl_file.replace("strt","final_states")
     with open(final_state_tpl_file,'w') as f:
-        for line in lines[:2]:
+        for line in lines:
             f.write(line.replace("_","final_"))
 
     pst = pyemu.Pst(os.path.join(t_d, "pest.pst"))
@@ -2021,7 +2021,6 @@ def seq_10par_xsec_double_state_test_3():
     par.loc[final_state_pars, "parubnd"] = par.loc[init_state_pars, "parubnd"].values
     par.loc[final_state_pars, "parlbnd"] = par.loc[init_state_pars, "parlbnd"].values
     par.loc[final_state_pars, "pargp"] = "final_states"
-
 
 
     par.loc[:, "cycle"] = -1
@@ -2085,7 +2084,7 @@ def seq_10par_xsec_double_state_test_3():
     pst.pestpp_options["da_weight_cycle_table"] = "weight_cycle_tbl.csv"
     pst.pestpp_options["da_num_reals"] = 10
     pst.pestpp_options["da_localizer"] = "loc.mat"
-    pst.pestpp_options["da_use_simulated_states"]  = True
+    pst.pestpp_options["da_use_simulated_states"] = True
 
     pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
     m_d = os.path.join(test_d, "master_da_double")
@@ -2096,8 +2095,17 @@ def seq_10par_xsec_double_state_test_3():
     # first check the global pe's after cycles with and without assimilation
     pe2 = pd.read_csv(os.path.join(m_d,"pest_seq.global.2.pe.csv"),index_col=0)
     pe1 = pd.read_csv(os.path.join(m_d,"pest_seq.global.1.pe.csv"),index_col=0)
-    
-    
+
+    pst.pestpp_options["da_noptmax_schedule"] = "sched.dat"
+    with open(os.path.join(t_d,"sched.dat"),'w') as f:
+        f.write("1 3\n")
+        f.write("3 2\n")
+
+    pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
+    m_d = os.path.join(test_d, "master_da_double_sched")
+    pyemu.os_utils.start_workers(t_d, exe_path.replace("ies", "da"), "pest_seq.pst",
+                                 num_workers=pst.pestpp_options["da_num_reals"], worker_root=test_d, port=port,
+                                 master_dir=m_d, verbose=True)
 
 def pump_test_2():
     test_d = "pump_test_2"
@@ -2254,8 +2262,8 @@ if __name__ == "__main__":
     #plot_da_pareto_demo()
     #seq_10par_xsec_double_state_test()
     #seq_10par_xsec_double_state_test_2()
-    seq_10par_xsec_state_est_test()
+    #seq_10par_xsec_state_est_test()
     #seq_10par_xsec_double_state_test_3()
-    #pump_test_2()
+    pump_test_2()
     #seq_10par_diff_state_cycle_test()
 

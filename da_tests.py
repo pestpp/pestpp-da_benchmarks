@@ -2238,6 +2238,170 @@ def seq_10par_diff_state_cycle_test():
     #pe1 = pd.read_csv(os.path.join(m_d,"pest_seq.global.1.pe.csv"),index_col=0)
 
 
+
+def seq_10par_xsec_ineq_test():
+    """a test of estimating parameters and final states - initial states fixed"""
+    test_d = "10par_xsec"
+    t_d_org = os.path.join(test_d, "template")
+    t_d = os.path.join(test_d, "template_double")
+    if os.path.exists(t_d):
+        shutil.rmtree(t_d)
+    shutil.copytree(t_d_org,t_d)
+    init_state_tpl_file = os.path.join(t_d,"strt_Layer_1.ref.tpl")
+    lines = open(init_state_tpl_file,'r').readlines()
+    final_state_tpl_file = init_state_tpl_file.replace("strt","final_states")
+    with open(final_state_tpl_file,'w') as f:
+        for line in lines:
+            f.write(line.replace("_","final_"))
+
+    pst = pyemu.Pst(os.path.join(t_d, "pest.pst"))
+    df = pst.add_parameters(final_state_tpl_file,pst_path=".")
+    df.sort_values(by="parnme",inplace=True)
+    par = pst.parameter_data
+    init_state_pars = df.parnme.str.replace("final_","_").tolist()[1:]
+    final_state_pars = [i.replace("_","final_") for i in init_state_pars]
+    par.loc[final_state_pars,"parval1"] = par.loc[init_state_pars,"parval1"].values
+    par.loc[final_state_pars, "parubnd"] = par.loc[init_state_pars, "parubnd"].values
+    par.loc[final_state_pars, "parlbnd"] = par.loc[init_state_pars, "parlbnd"].values
+    par.loc[final_state_pars, "pargp"] = "final_states"
+
+
+    par.loc[:, "cycle"] = -1
+    par.loc[:,"state_par_link"] = np.NaN
+    par.loc[final_state_pars,"state_par_link"] = init_state_pars
+
+    par.loc[par.parnme.str.contains("strt"), "partrans"] = "log"
+    par.loc["cnhd_01", "partrans"] = "fixed"
+    par.loc[init_state_pars,"partrans"] = "fixed"
+    strt_pars = par.loc[par.pargp == "strt", "parnme"].tolist()
+    obs = pst.observation_data
+    obs.loc[obs.obsnme.str.startswith("h01"), "weight"] = 1.0
+    obs.loc[:, "state_par_link"] = ""
+    obs.loc[obs.obgnme == "head1", "state_par_link"] = strt_pars
+    ostates = obs.loc[obs.obgnme == "head1","obsnme"]
+    obs.loc[:, "cycle"] = -1
+
+    pst.control_data.noptmax = 1
+
+    pst.model_input_data.loc[:, "cycle"] = -1
+    pst.model_output_data.loc[:, "cycle"] = -1
+
+    def get_loc(pst):
+
+        loc = pd.DataFrame(index=pst.nnz_obs_names, columns=pst.adj_par_names)
+        loc.loc[:, :] = 0.0
+        ocells = loc.index.map(lambda x: int(x.split('_')[1]))
+        for pname in pst.adj_par_names:
+            cstr = pname.split('_')[1]
+            cint = int(cstr)
+            # strt states can comm with all obs locs
+            if "strt" in pname:
+                dist = (ocells - cint).map(np.abs)
+                loc_vals = 1 / (dist + 0.01)
+                loc_vals = loc_vals.values
+                loc_vals[loc_vals > 1.0] = 1.0
+                loc.loc[:, pname] = loc_vals
+            # static pars can only comm with obs in the same cell
+            else:
+
+                oname = [o for o in pst.nnz_obs_names if cstr in o.split('_')[1] == cstr][0]
+                loc.loc[oname, pname] = 1.0
+        return loc
+
+    loc = get_loc(pst)
+    pyemu.Matrix.from_dataframe(loc).to_ascii(os.path.join(t_d, "loc.mat"))
+
+    # dont change these settings - they are hard coded below in the testing
+    mx_cycle = 5
+    cycles = np.arange(0, mx_cycle)
+    odf = pd.DataFrame(index=cycles, columns=pst.nnz_obs_names)
+    odf.loc[:, :] = obs.loc[pst.nnz_obs_names, "obsval"].values
+
+    wdf = pd.DataFrame(index=cycles, columns=pst.nnz_obs_names)
+    wdf.loc[:, :] = 0.0
+    wdf.iloc[1, [3, 5]] = 1.0
+    wdf.iloc[3, :] = 1.0
+    # this should cause a zero phi for cycle 1
+    odf.iloc[1, [3, 5]] = 10000
+
+    odf.T.to_csv(os.path.join(t_d, "obs_cycle_tbl.csv"))
+    wdf.T.to_csv(os.path.join(t_d, "weight_cycle_tbl.csv"))
+    obs = pst.observation_data
+    obs.loc[pst.nnz_obs_names,"obgnme"] = "less_than"
+    pst.pestpp_options["lambda_scale_fac"] = 1.0
+    pst.pestpp_options["da_lambda_mults"] = 1.0
+    pst.pestpp_options["da_use_mda"] = True
+    pst.pestpp_options["da_observation_cycle_table"] = "obs_cycle_tbl.csv"
+    pst.pestpp_options["da_weight_cycle_table"] = "weight_cycle_tbl.csv"
+    pst.pestpp_options["da_num_reals"] = 10
+    pst.pestpp_options["da_localizer"] = "loc.mat"
+    pst.pestpp_options["da_use_simulated_states"]  = False
+
+    pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
+    m_d = os.path.join(test_d, "master_da_double_ineq")
+    pyemu.os_utils.start_workers(t_d, exe_path.replace("ies", "da"), "pest_seq.pst",
+                                 num_workers=pst.pestpp_options["da_num_reals"], worker_root=test_d, port=port,
+                                 master_dir=m_d, verbose=True)
+
+    phi_df = pd.read_csv(os.path.join(m_d,"pest_seq.global.phi.actual.csv"))
+    cycle1_sum = phi_df.loc[phi_df.cycle==1,:].iloc[:,1:].sum().sum()
+    print(cycle1_sum)
+    assert cycle1_sum == 0.0
+
+    rec_lines = open(os.path.join(m_d,"pest_seq.rec"),'r').readlines()
+    found_1,found_2 = False,False
+    for line in rec_lines:
+        #print(line.strip())
+        if "initial actual phi mean too low but only inequality obs are being used" in line:
+            found_1 = True
+        if "current mean actual and/or measurement phi is too low for solution" in line:
+            found_2 = True
+        if found_1 and found_2:
+            break
+    assert found_1 is True
+    assert found_2 is True
+    rec_lines = None
+
+
+
+    # first check the global pe's after cycles with and without assimilation
+    pe0 = pd.read_csv(os.path.join(m_d,"pest_seq.global.0.pe.csv"),index_col=0)
+    pe1 = pd.read_csv(os.path.join(m_d,"pest_seq.global.1.pe.csv"),index_col=0)
+    d = np.abs(pe0.loc[:,final_state_pars].values - pe1.loc[:,init_state_pars].values).sum().sum()
+    print(d)
+    assert d < 1.0e-3
+
+    pe2 = pd.read_csv(os.path.join(m_d, "pest_seq.global.2.pe.csv"), index_col=0)
+    # these should be the same since we are not using simulated states (even tho we iterated during cycle 1)
+    d = np.abs(pe2.loc[:, init_state_pars].values - pe1.loc[:, final_state_pars].values).sum().sum()
+    assert d < 1.0e-3
+
+    pe3 = pd.read_csv(os.path.join(m_d,"pest_seq.global.3.pe.csv"),index_col=0)
+    # these should be diff since we assimilated during cycle 3
+    d = np.abs(pe3.loc[:, final_state_pars].values - pe3.loc[:, init_state_pars].values).sum().sum()
+    print(d)
+    assert d > 1.0e-3
+
+    pe4 = pd.read_csv(os.path.join(m_d,"pest_seq.global.4.pe.csv"),index_col=0)
+    d = np.abs(pe3.loc[:, final_state_pars].values - pe4.loc[:, init_state_pars].values).sum().sum()
+    print(d)
+    assert d < 1.0e-3
+
+
+    oe0 = pd.read_csv(os.path.join(m_d,"pest_seq.global.0.oe.csv"),index_col=0)
+    # the final state pars should equal the obs states
+    d = np.abs(oe0.loc[:,ostates].values - pe0.loc[:,final_state_pars].values).sum().sum()
+    print(d)
+    assert d < 1.0e-3
+    # the init state pars should be diff than the obs states
+    d = np.abs(oe0.loc[:, ostates].values - pe0.loc[:, init_state_pars].values).sum().sum()
+    assert d > 1.0e-3
+
+    oe00 = pd.read_csv(os.path.join(m_d, "pest_seq.0.0.obs.csv"), index_col=0)
+    # these should be the same since we transferred from oe to pe after the initialization
+    d = np.abs(oe00.loc[:, ostates].values - pe0.loc[:, final_state_pars].values).sum().sum()
+    assert d < 1.0e-3
+
 if __name__ == "__main__":
     
     
@@ -2264,6 +2428,6 @@ if __name__ == "__main__":
     #seq_10par_xsec_double_state_test_2()
     #seq_10par_xsec_state_est_test()
     #seq_10par_xsec_double_state_test_3()
-    pump_test_2()
+    #pump_test_2()
     #seq_10par_diff_state_cycle_test()
-
+    seq_10par_xsec_ineq_test()

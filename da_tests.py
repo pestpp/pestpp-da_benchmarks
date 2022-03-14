@@ -2321,6 +2321,7 @@ def seq_10par_xsec_ineq_test():
     wdf.loc[:, :] = 0.0
     wdf.iloc[1, [3, 5]] = 1.0
     wdf.iloc[3, :] = 1.0
+    wdf.iloc[4, :] = 1.0
     # this should cause a zero phi for cycle 1
     odf.iloc[1, [3, 5]] = 10000
 
@@ -2352,10 +2353,15 @@ def seq_10par_xsec_ineq_test():
     print(cycle1_sum)
     assert cycle1_sum == 0.0
 
-    phi_df = pd.read_csv(os.path.join(m_d, "pest_seq.global.phi.actual.csv"))
-    cycle1_sum = phi_df.loc[phi_df.cycle == 1, :].iloc[:, 1:].sum().sum()
-    print(cycle1_sum)
-    assert cycle1_sum == 0.0
+    cycle3_sum = phi_df.loc[phi_df.cycle == 3, :].iloc[:, 1:].sum().sum()
+    print(cycle3_sum)
+    assert cycle3_sum == 0.0
+
+    cycle4_iter0_sum = phi_df.loc[phi_df.apply(lambda x: x.cycle == 4 and x.iteration==0,axis=1), :].iloc[:, 1:].sum().sum()
+    cycle4_iter1_sum = phi_df.loc[phi_df.apply(lambda x: x.cycle == 4 and x.iteration==1,axis=1), :].iloc[:, 1:].sum().sum()
+    assert cycle4_iter0_sum > 0
+    assert cycle4_iter1_sum > 0
+    assert cycle4_iter1_sum < cycle4_iter0_sum
 
     rec_lines = open(os.path.join(m_d,"pest_seq.rec"),'r').readlines()
     found_1,found_2 = False,False

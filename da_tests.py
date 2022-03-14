@@ -2324,6 +2324,9 @@ def seq_10par_xsec_ineq_test():
     # this should cause a zero phi for cycle 1
     odf.iloc[1, [3, 5]] = 10000
 
+    # this should cause a conflict for cycle 3
+    odf.iloc[3, :] = -10000
+
     odf.T.to_csv(os.path.join(t_d, "obs_cycle_tbl.csv"))
     wdf.T.to_csv(os.path.join(t_d, "weight_cycle_tbl.csv"))
     obs = pst.observation_data
@@ -2335,7 +2338,8 @@ def seq_10par_xsec_ineq_test():
     pst.pestpp_options["da_weight_cycle_table"] = "weight_cycle_tbl.csv"
     pst.pestpp_options["da_num_reals"] = 10
     pst.pestpp_options["da_localizer"] = "loc.mat"
-    pst.pestpp_options["da_use_simulated_states"]  = False
+    pst.pestpp_options["da_use_simulated_states"] = False
+    pst.pestpp_options["da_drop_conflicts"] = True
 
     pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
     m_d = os.path.join(test_d, "master_da_double_ineq")
@@ -2348,18 +2352,28 @@ def seq_10par_xsec_ineq_test():
     print(cycle1_sum)
     assert cycle1_sum == 0.0
 
+    phi_df = pd.read_csv(os.path.join(m_d, "pest_seq.global.phi.actual.csv"))
+    cycle1_sum = phi_df.loc[phi_df.cycle == 1, :].iloc[:, 1:].sum().sum()
+    print(cycle1_sum)
+    assert cycle1_sum == 0.0
+
     rec_lines = open(os.path.join(m_d,"pest_seq.rec"),'r').readlines()
     found_1,found_2 = False,False
+    found_3 = False
+
     for line in rec_lines:
         #print(line.strip())
         if "initial actual phi mean too low but only inequality obs are being used" in line:
             found_1 = True
         if "current mean actual and/or measurement phi is too low for solution" in line:
             found_2 = True
-        if found_1 and found_2:
+        if "all non-zero weighted observations in conflict state, continuing to next cycle" in line:
+            found_3 = True
+        if found_1 and found_2 and found_3:
             break
     assert found_1 is True
     assert found_2 is True
+    assert found_3 is True
     rec_lines = None
 
 

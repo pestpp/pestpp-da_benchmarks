@@ -2127,6 +2127,13 @@ def seq_10par_diff_state_cycle_test():
     org_init_state_tpl_file = os.path.join(t_d,"strt_Layer_1.ref.tpl")
     lines = open(org_init_state_tpl_file,'r').readlines()
     pst = pyemu.Pst(os.path.join(t_d, "pest.pst"))
+
+    tpl_df = pst.model_input_data
+    tpl_df.index = tpl_df.index.map(lambda x: x.replace(".\\","").replace("./",""))
+    for col in ["pest_file","model_file"]:
+        tpl_df.loc[:,col] = tpl_df.loc[:,col].apply(lambda x: x.replace(".\\","").replace("./",""))
+
+
     pst.drop_parameters(org_init_state_tpl_file,pst_path=".")
     pst.parameter_data.loc[:, "cycle"] = -1
     par = pst.parameter_data
@@ -2172,8 +2179,8 @@ def seq_10par_diff_state_cycle_test():
         par.loc[init_state_pars,"cycle"] = cycle
         par.loc[final_state_pars,"cycle"] = cycle
         par.loc[final_state_pars,"state_par_link"] = init_state_pars
-        pst.model_input_data.loc["./" + os.path.split(init_state_tpl_file)[-1],"cycle"] = cycle
-        pst.model_input_data.loc["./" + os.path.split(final_state_tpl_file)[-1],"cycle"] = cycle
+        pst.model_input_data.loc[os.path.join(".",os.path.split(init_state_tpl_file)[-1]),"cycle"] = cycle
+        pst.model_input_data.loc[os.path.join(".",os.path.split(final_state_tpl_file)[-1]),"cycle"] = cycle
 
         cycle_ins_file = org_hds_ins_file.replace(".hds","_cycle{0}.hds".format(cycle))
         with open(cycle_ins_file,'w') as f:
@@ -2184,7 +2191,7 @@ def seq_10par_diff_state_cycle_test():
         df_ins = pst.add_observations(cycle_ins_file,out_file=os.path.join(t_d,"10par_xsec.hds"),pst_path=".")
         pst.observation_data.loc[df_ins.obsnme,"cycle"] = cycle
         pst.observation_data.loc[df_ins.obsnme,"weight"] = 0
-        pst.model_output_data.loc["./"+os.path.split(cycle_ins_file)[-1],"cycle"] = cycle
+        pst.model_output_data.loc[os.path.join(".",os.path.split(cycle_ins_file)[-1]),"cycle"] = cycle
         #print(df_init.parnme.iloc[:df_ins.shape[0]].values)
         pst.observation_data.loc[df_ins.obsnme[:10].values,"state_par_link"] = df_init.parnme.iloc[:df_ins.shape[0]].sort_values().values
     #print(pst.observation_data.state_par_link)
@@ -2541,7 +2548,7 @@ def seq_10par_xsec_double_state_test_with_fail():
 if __name__ == "__main__":
     
     
-    #shutil.copy2(os.path.join("..","exe","windows","x64","Debug","pestpp-da.exe"),os.path.join("..","bin","pestpp-da.exe"))
+    shutil.copy2(os.path.join("..","exe","windows","x64","Debug","pestpp-da.exe"),os.path.join("..","bin","pestpp-da.exe"))
     #seq_10par_cycle_parse_test()
     #seq_10par_xsec_hotstart_test()
     #seq_10par_diff_obspar_cycle_test()
@@ -2565,6 +2572,6 @@ if __name__ == "__main__":
     #seq_10par_xsec_state_est_test()
     #seq_10par_xsec_double_state_test_3()
     #pump_test_2()
-    #seq_10par_diff_state_cycle_test()
+    seq_10par_diff_state_cycle_test()
     #seq_10par_xsec_ineq_test()
-    seq_10par_xsec_double_state_test_with_fail()
+    #seq_10par_xsec_double_state_test_with_fail()

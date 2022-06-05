@@ -1609,7 +1609,7 @@ def plot_compare(solution="ies",noptmax=1):
     for og in ies_og_uvals:
         pyemu.os_utils.run("ffmpeg -i compare_{0}_{1}_024.png -vf palettegen=16 -y palette.png".format(og,solution),cwd=plt_d)
         cmd = "ffmpeg -i compare_{0}_{1}_%03d.png -i palette.png -y -filter_complex ".format(og,solution)
-        cmd += "\"fps=100,scale=720:-1:flags=lanczos[x];[x][1:v]paletteuse\" -y  -final_delay 150 {0}_{1}.gif".format(og,solution)
+        cmd += "\"fps=80,scale=720:-1:flags=lanczos[x];[x][1:v]paletteuse\" -y  -final_delay 150 {0}_{1}.gif".format(og,solution)
         pyemu.os_utils.run(cmd,cwd=plt_d)
         #os.system("ffmpeg -r 1 -i {0} -loop 1 -final_delay 100 -y -vf fps=25 {1}.mp4".
         #      format(os.path.join(plt_d,"compare_{0}_{1}_%03d.png".format(og,solution)),

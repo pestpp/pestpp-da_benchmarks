@@ -297,6 +297,8 @@ def da_mf6_freyberg_test_1():
     pst.pestpp_options["ies_verbose_level"] = 4
     pst.pestpp_options["ies_no_noise"] = True
     pst.pestpp_options["da_use_mda"] = False
+    pst.pestpp_options["da_lambda_mults"] = 1.0
+    pst.pestpp_options["lambda_scale_fac"] = 1.0
     pst.write(os.path.join(t_d, "freyberg6_run_da1.pst"), version=2)
     #pyemu.os_utils.run("{0} freyberg6_run_da1.pst".format(exe_path.replace("ies","da")),cwd=t_d)
 
@@ -411,6 +413,8 @@ def da_mf6_freyberg_test_2():
     pst.pestpp_options["ies_verbose_level"] = 4
     pst.pestpp_options["ies_no_noise"] = True
     pst.pestpp_options["da_use_mda"] = False
+    pst.pestpp_options["da_lambda_mults"] = 1.0
+    pst.pestpp_options["lambda_scale_fac"] = 1.0
     pst.write(os.path.join(t_d, "freyberg6_run_da2.pst"), version=2)
     pyemu.os_utils.run("{0} freyberg6_run_da2.pst".format(exe_path.replace("ies","da")),cwd=t_d)
 
@@ -451,6 +455,8 @@ def da_mf6_freyberg_smoother_test():
     pst.pestpp_options.pop("da_localizer",None)
     pst.pestpp_options["da_num_reals"] = 15
     pst.pestpp_options["da_use_mda"] = False
+    pst.pestpp_options["da_lambda_mults"] = 1.0
+    pst.pestpp_options["lambda_scale_fac"] = 1.0
     new_dict = {}
     for key,val in pst.pestpp_options.items():
         new_dict[key.replace("ies","da")] = val
@@ -624,6 +630,8 @@ def da_mf6_freyberg_test_3():
     pst.pestpp_options["ies_verbose_level"] = 4
     pst.pestpp_options["ies_no_noise"] = True
     pst.pestpp_options["da_use_mda"] = False
+    pst.pestpp_options["da_lambda_mults"] = 1.0
+    pst.pestpp_options["lambda_scale_fac"] = 1.0
     pst.write(os.path.join(t_d, "freyberg6_run_da2.pst"), version=2)
     pyemu.os_utils.run("{0} freyberg6_run_da2.pst".format(exe_path.replace("ies","da")),cwd=t_d)
 
@@ -2111,7 +2119,10 @@ def pump_test_2():
     test_d = "pump_test_2"
     t_d = os.path.join(test_d, "template")
     m_d = os.path.join(test_d,"master_da")
-    pyemu.os_utils.start_workers(t_d,exe_path,"es_pmp.pst",num_workers=5,worker_root=test_d,
+    pst = pyemu.Pst(os.path.join(t_d,"es_pmp.pst"))
+    pst.pestpp_options["da_lambda_mults"] = 1.0
+    pst.pestpp_options["lambda_scale_fac"] = 1.0
+    pyemu.os_utils.start_workers(t_d,exe_path,"es_pmp.pst",num_workers=15,worker_root=test_d,
         master_dir=m_d)
     
 

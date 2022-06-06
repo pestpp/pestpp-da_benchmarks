@@ -2122,7 +2122,8 @@ def pump_test_2():
     pst = pyemu.Pst(os.path.join(t_d,"es_pmp.pst"))
     pst.pestpp_options["da_lambda_mults"] = 1.0
     pst.pestpp_options["lambda_scale_fac"] = 1.0
-    pyemu.os_utils.start_workers(t_d,exe_path,"es_pmp.pst",num_workers=15,worker_root=test_d,
+    pst.control_data.noptmax = 1
+    pyemu.os_utils.start_workers(t_d,exe_path,"es_pmp.pst",num_workers=10,worker_root=test_d,
         master_dir=m_d)
     
 
@@ -2582,7 +2583,7 @@ if __name__ == "__main__":
     #seq_10par_xsec_double_state_test_2()
     #seq_10par_xsec_state_est_test()
     #seq_10par_xsec_double_state_test_3()
-    #pump_test_2()
-    seq_10par_diff_state_cycle_test()
+    pump_test_2()
+    #seq_10par_diff_state_cycle_test()
     #seq_10par_xsec_ineq_test()
     #seq_10par_xsec_double_state_test_with_fail()

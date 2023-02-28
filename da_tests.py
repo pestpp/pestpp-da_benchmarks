@@ -122,14 +122,14 @@ def da_prep_4_mf6_freyberg_seq(sync_state_names=True):
                     if line.lower().strip().startswith("end"):
                         break
                     if line.lower().strip().startswith("internal"):
-                        arr = np.array(arr_lines,dtype=np.float)
+                        arr = np.array(arr_lines,dtype=float)
                         np.savetxt(os.path.join(t_d,"heads_{0}.dat_in".format(k)),arr,fmt="%15.6E")
                         k += 1
                         arr_lines = []
                     else:
                         arr_lines.append(line.strip().split())
 
-        arr = np.array(arr_lines, dtype=np.float)
+        arr = np.array(arr_lines, dtype=float)
         np.savetxt(os.path.join(t_d, "heads_{0}.dat_in".format(k)), arr, fmt="%15.6E")
     with open(os.path.join(t_d,"freyberg6.ic"),'w') as f:
         f.write("begin griddata\nstrt layered\n")

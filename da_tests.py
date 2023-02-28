@@ -2560,7 +2560,7 @@ def seq_10par_xsec_double_state_test_with_fail():
 if __name__ == "__main__":
     
     
-    shutil.copy2(os.path.join("..","exe","windows","x64","Debug","pestpp-da.exe"),os.path.join("..","bin","pestpp-da.exe"))
+    #shutil.copy2(os.path.join("..","exe","windows","x64","Debug","pestpp-da.exe"),os.path.join("..","bin","pestpp-da.exe"))
     #seq_10par_cycle_parse_test()
     #seq_10par_xsec_hotstart_test()
     #seq_10par_diff_obspar_cycle_test()
@@ -2572,7 +2572,7 @@ if __name__ == "__main__":
     #da_build_mf6_freyberg_seq_localizer()
     #da_prep_4_mf6_freyberg_seq(sync_state_names=False)
     #da_mf6_freyberg_test_3()
-    #seq_10par_xsec_state_est_test()
+    seq_10par_xsec_state_est_test()
     #seq_10par_xsec_fixed_test()
     #compare_mf6_freyberg()
     #plot_compare("glm",noptmax=3)
@@ -2583,7 +2583,7 @@ if __name__ == "__main__":
     #seq_10par_xsec_double_state_test_2()
     #seq_10par_xsec_state_est_test()
     #seq_10par_xsec_double_state_test_3()
-    pump_test_2()
+    #pump_test_2()
     #seq_10par_diff_state_cycle_test()
     #seq_10par_xsec_ineq_test()
     #seq_10par_xsec_double_state_test_with_fail()

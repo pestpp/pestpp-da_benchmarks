@@ -903,7 +903,7 @@ def seq_10par_xsec_fixed_test():
     pe_cycle2 = pd.read_csv(os.path.join(m_d,"pest_seq.global.2.pe.csv"),index_col=0)
     fpar_names = par.loc[par.parnme.apply(lambda x: "strt" not in x and "_04"  not in x and "_06" not in x),"parnme"]
 
-    d = (pe_cycle2.loc[:,fpar_names] - pr_pe.loc[:,fpar_names]).apply(np.abs)
+    d = (pe_cycle2.loc[:,fpar_names] - pr_pe.loc[:,fpar_names]).apply(lambda x: np.abs(x))
     print(d)
     print(d.max())
     print(d.max().max())
@@ -1020,11 +1020,11 @@ def seq_10par_diff_obspar_cycle_test():
     assert d.sum() == 0
 
     c1_oe = pd.read_csv(os.path.join(t_d1, "pest_seq.global.1.oe.csv"), index_col=0)
-    d = (c1_pe.loc[:,"cnhd_01_01"] - c1_oe.loc[:,"h01_01_01"]).apply(np.abs)
+    d = (c1_pe.loc[:,"cnhd_01_01"] - c1_oe.loc[:,"h01_01_01"]).apply(lambda x: np.abs(x))
     print(d)
     print(d.max())
     assert d.max() == 0
-    d = (c1_pe.loc[:, "cnhd_01_00"] - c1_oe.loc[:, "h01_01_00"]).apply(np.abs)
+    d = (c1_pe.loc[:, "cnhd_01_00"] - c1_oe.loc[:, "h01_01_00"]).apply(lambda x: np.abs(x))
     print(d)
     print(d.max())
     assert d.max() == 0
@@ -1127,7 +1127,7 @@ def seq_10par_xsec_hotstart_test():
     pe_cycle2 = pd.read_csv(os.path.join(m_d,"pest_seq.global.3.pe.csv"),index_col=0)
     fpar_names = par.loc[par.parnme.apply(lambda x: "strt" not in x),"parnme"]
 
-    d = (pe_cycle2.loc[:,fpar_names] - pr_pe.loc[:,fpar_names]).apply(np.abs)
+    d = (pe_cycle2.loc[:,fpar_names] - pr_pe.loc[:,fpar_names]).apply(lambda x: np.abs(x))
     print(d)
     print(d.max())
     print(d.max().max())
@@ -1149,7 +1149,7 @@ def seq_10par_xsec_hotstart_test():
                                 master_dir=m_d, verbose=True)
 
     phi2 = pd.read_csv(os.path.join(m_d,"pest_seq.global.phi.actual.csv"))
-    d = (phi1-phi2).apply(np.abs)
+    d = (phi1-phi2).apply(lambda x: np.abs(x))
     print(d.max())
     print(d.max().max())
     assert d.max().max() < 0.01

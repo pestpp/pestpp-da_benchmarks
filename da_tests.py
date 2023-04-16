@@ -362,7 +362,7 @@ def da_prep_4_mf6_freyberg_seq_tbl():
     for og in tr_obs.obgnme.unique():
         site_obs = tr_obs.loc[tr_obs.obgnme==og,:]
         site_obs.sort_values(by="datetime",inplace=True)
-        head_name = "head_{0:02d}_{1:03d}_{2:03d}".format(site_obs.k[0],site_obs.i[0],site_obs.j[0])
+        head_name = "head_{0:02d}_{1:03d}_{2:03d}".format(int(site_obs.k[0]),int(site_obs.i[0]),int(site_obs.j[0]))
         for i,oname in enumerate(site_obs.obsnme):
             obs_heads[oname] = (head_name,i)
         # assign max weight in the control file since some have zero weight and
@@ -2565,14 +2565,14 @@ if __name__ == "__main__":
     #seq_10par_xsec_hotstart_test()
     #seq_10par_diff_obspar_cycle_test()
     #da_mf6_freyberg_test_1()
-    #da_mf6_freyberg_test_2()
+    da_mf6_freyberg_test_2()
     #da_mf6_freyberg_smoother_test()
     #da_prep_4_mf6_freyberg_seq_tbl()
     #da_build_mf6_freyberg_seq_localizer_tbl()
     #da_build_mf6_freyberg_seq_localizer()
     #da_prep_4_mf6_freyberg_seq(sync_state_names=False)
     #da_mf6_freyberg_test_3()
-    seq_10par_xsec_state_est_test()
+    #seq_10par_xsec_state_est_test()
     #seq_10par_xsec_fixed_test()
     #compare_mf6_freyberg()
     #plot_compare("glm",noptmax=3)

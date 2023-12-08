@@ -999,8 +999,10 @@ def seq_10par_diff_obspar_cycle_test():
     m_d1 = t_d.replace("template", "master1")
     if os.path.exists(m_d1):
         shutil.rmtree(m_d1)
-    pyemu.os_utils.start_workers(t_d,exe_path,"pest_seq.pst",5,worker_root=test_d,
-                                 master_dir=m_d1)
+    #pyemu.os_utils.start_workers(t_d,exe_path,"pest_seq.pst",5,worker_root=test_d,
+    #                             master_dir=m_d1)
+    shutil.copytree(t_d,m_d1)
+    pyemu.os_utils.run("{0} pest_seq.pst".format(exe_path),cwd=m_d1)
     c0_pe = pd.read_csv(os.path.join(t_d1, "pest_seq.global.0.pe.csv"), index_col=0)
     d = np.abs(spar.loc[:, "parval1"].values - c0_pe.loc["base", spar.parnme].values)
     print(d)
@@ -2565,7 +2567,7 @@ if __name__ == "__main__":
     #seq_10par_xsec_hotstart_test()
     #seq_10par_diff_obspar_cycle_test()
     #da_mf6_freyberg_test_1()
-    da_mf6_freyberg_test_2()
+    #da_mf6_freyberg_test_2()
     #da_mf6_freyberg_smoother_test()
     #da_prep_4_mf6_freyberg_seq_tbl()
     #da_build_mf6_freyberg_seq_localizer_tbl()
@@ -2585,5 +2587,6 @@ if __name__ == "__main__":
     #seq_10par_xsec_double_state_test_3()
     #pump_test_2()
     #seq_10par_diff_state_cycle_test()
+    seq_10par_diff_obspar_cycle_test()
     #seq_10par_xsec_ineq_test()
     #seq_10par_xsec_double_state_test_with_fail()

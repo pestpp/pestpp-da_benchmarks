@@ -1002,6 +1002,10 @@ def seq_10par_diff_obspar_cycle_test():
     #pyemu.os_utils.start_workers(t_d,exe_path,"pest_seq.pst",5,worker_root=test_d,
     #                             master_dir=m_d1)
     shutil.copytree(t_d,m_d1)
+    bd = os.getcwd()
+    os.chdir(m_d1)
+    os.system("{0} pest_seq.pst".format(exe_path))
+    os.chdir(bd)
     pyemu.os_utils.run("{0} pest_seq.pst".format(exe_path),cwd=m_d1)
     c0_pe = pd.read_csv(os.path.join(t_d1, "pest_seq.global.0.pe.csv"), index_col=0)
     d = np.abs(spar.loc[:, "parval1"].values - c0_pe.loc["base", spar.parnme].values)

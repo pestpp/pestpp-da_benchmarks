@@ -948,15 +948,16 @@ def seq_10par_diff_obspar_cycle_test():
     print("----->before")
     print(par.loc[spars,["parval1","parubnd","parlbnd"]])
     par.loc[spars,"parval1"] = 1.0e-5
-    par.loc[:,"parubnd"] = par.parval1.values * 1.5
-    par.loc[:, "parlbnd"] = par.parval1.values * 0.5
+    par = pst.parameter_data
+    par["parubnd"] = par.parval1.values * 1.5
+    par["parlbnd"] = par.parval1.values * 0.5
 
     par.loc[:,"cycle"] = -1
     par.loc[par.parnme.str.startswith("cnhd"),"cycle"] = par.loc[par.parnme.str.startswith("cnhd"),"parnme"].apply(lambda x: int(x.split('_')[-1]))
     print(par)
     print("----->after")
     print(par.loc[spars,["parval1","parubnd","parlbnd"]])
-    
+    exit()
     
     obs = pst.observation_data
     obs.loc[:,"cycle"] = obs.obsnme.apply(lambda x: int(x.split('_')[-1]))

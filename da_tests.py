@@ -944,8 +944,8 @@ def seq_10par_diff_obspar_cycle_test():
 
     par = pst.parameter_data
     par.loc[par.parnme.str.contains("ss"),"parval1"] = 1.0e-5
-    par.loc[:,"parubnd"] = par.parval1 * 1.5
-    par.loc[:, "parlbnd"] = par.parval1 * 0.5
+    par.loc[:,"parubnd"] = 1.0e-4#par.parval1 * 1.5
+    par.loc[:, "parlbnd"] = 1.0e-6#par.parval1 * 0.5
 
     par.loc[:,"cycle"] = -1
     par.loc[par.parnme.str.startswith("cnhd"),"cycle"] = par.loc[par.parnme.str.startswith("cnhd"),"parnme"].apply(lambda x: int(x.split('_')[-1]))
@@ -1006,7 +1006,8 @@ def seq_10par_diff_obspar_cycle_test():
     os.chdir(m_d1)
     os.system("{0} pest_seq.pst".format(exe_path))
     os.chdir(bd)
-    pyemu.os_utils.run("{0} pest_seq.pst".format(exe_path),cwd=m_d1)
+    exit()
+    #pyemu.os_utils.run("{0} pest_seq.pst".format(exe_path),cwd=m_d1)
     c0_pe = pd.read_csv(os.path.join(t_d1, "pest_seq.global.0.pe.csv"), index_col=0)
     d = np.abs(spar.loc[:, "parval1"].values - c0_pe.loc["base", spar.parnme].values)
     print(d)

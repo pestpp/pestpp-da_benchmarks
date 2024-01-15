@@ -943,7 +943,9 @@ def seq_10par_diff_obspar_cycle_test():
     print(out)
 
     par = pst.parameter_data
-    par.loc[par.parnme.str.contains("ss"),"parval1"] = 1.0e-5
+    spars = par.loc[par.parnme.str.startswith("ss"),"parnme"]
+    assert spars.shape[0] > 0
+    par.loc[spars,"parval1"] = 1.0e-5
     par.loc[:,"parubnd"] = par.parval1.values * 1.5
     par.loc[:, "parlbnd"] = par.parval1.values * 0.5
 

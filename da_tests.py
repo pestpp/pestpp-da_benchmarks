@@ -947,7 +947,7 @@ def seq_10par_diff_obspar_cycle_test():
     assert spars.shape[0] > 0
     print("----->before")
     print(par.loc[spars,["parval1","parubnd","parlbnd"]])
-    par.loc[spars,"parval1"] = 1.0e-5
+    par.loc[spars,"partrans"] = "fixed"
     par = pst.parameter_data
     par["parubnd"] = par.parval1.values * 1.5
     par["parlbnd"] = par.parval1.values * 0.5

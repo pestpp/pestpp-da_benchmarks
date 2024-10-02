@@ -280,9 +280,9 @@ def da_prep_4_mf6_freyberg_seq(sync_state_names=True):
     pst.pestpp_options["ies_num_reals"] = 5
     pst.pestpp_options["da_num_reals"] = 5
     if not sync_state_names:
-        pst.observation_data.loc[:,"state_par_link"] = np.NaN
+        pst.observation_data.loc[:,"state_par_link"] = np.nan
         obs = pst.observation_data
-        obs.loc[:,"state_par_link"] = obs.obsnme.apply(lambda x: obs_to_par_map.get(x,np.NaN))
+        obs.loc[:,"state_par_link"] = obs.obsnme.apply(lambda x: obs_to_par_map.get(x,np.nan))
     pst.write(os.path.join(t_d,"freyberg6_run_da1.pst"),version=2)
     return pst
 
@@ -357,7 +357,7 @@ def da_prep_4_mf6_freyberg_seq_tbl():
     # work out which heads are obs site
     obs_heads = {}
     odf_names = []
-    pst.observation_data.loc[:,"org_obgnme"] = np.NaN
+    pst.observation_data.loc[:,"org_obgnme"] = np.nan
     pst.observation_data.loc[:, "weight"] = 0.0
     for og in tr_obs.obgnme.unique():
         site_obs = tr_obs.loc[tr_obs.obgnme==og,:]
@@ -1391,7 +1391,7 @@ def compare_mf6_freyberg():
     # plt.plot(new_vals)
     # plt.show()
     # return
-    ies_obs.loc[:,"org_obsval"] = np.NaN
+    ies_obs.loc[:,"org_obsval"] = np.nan
     ies_obs.loc[gage_obs.obsnme,"org_obsval"] = gage_obs.obsval.values
     ies_obs.loc[gage_obs.obsnme,"obsval"] = new_vals
 
@@ -1775,7 +1775,7 @@ def seq_10par_xsec_double_state_test():
 
 
     par.loc[:, "cycle"] = -1
-    par.loc[:,"state_par_link"] = np.NaN
+    par.loc[:,"state_par_link"] = np.nan
     par.loc[final_state_pars,"state_par_link"] = init_state_pars
 
     par.loc[par.parnme.str.contains("strt"), "partrans"] = "log"
@@ -1914,7 +1914,7 @@ def seq_10par_xsec_double_state_test_2():
 
 
     par.loc[:, "cycle"] = -1
-    par.loc[:,"state_par_link"] = np.NaN
+    par.loc[:,"state_par_link"] = np.nan
     par.loc[final_state_pars,"state_par_link"] = init_state_pars
 
     par.loc[par.parnme.apply(lambda x: x not in final_state_pars),"partrans"] = "fixed"
@@ -2047,7 +2047,7 @@ def seq_10par_xsec_double_state_test_3():
 
 
     par.loc[:, "cycle"] = -1
-    par.loc[:,"state_par_link"] = np.NaN
+    par.loc[:,"state_par_link"] = np.nan
     par.loc[final_state_pars,"state_par_link"] = init_state_pars
 
     strt_pars = par.loc[par.pargp == "strt", "parnme"].tolist()
@@ -2165,7 +2165,7 @@ def seq_10par_diff_state_cycle_test():
     pst.parameter_data.loc[:, "cycle"] = -1
     par = pst.parameter_data
 
-    par.loc[:,"state_par_link"] = np.NaN
+    par.loc[:,"state_par_link"] = np.nan
     pst.model_input_data.loc[:, "cycle"] = -1
     pst.model_output_data.loc[:, "cycle"] = -1
     mx_cycle = 5
@@ -2301,7 +2301,7 @@ def seq_10par_xsec_ineq_test():
 
 
     par.loc[:, "cycle"] = -1
-    par.loc[:,"state_par_link"] = np.NaN
+    par.loc[:,"state_par_link"] = np.nan
     par.loc[final_state_pars,"state_par_link"] = init_state_pars
 
     par.loc[par.parnme.str.contains("strt"), "partrans"] = "log"
@@ -2485,7 +2485,7 @@ def seq_10par_xsec_double_state_test_with_fail():
 
 
     par.loc[:, "cycle"] = -1
-    par.loc[:,"state_par_link"] = np.NaN
+    par.loc[:,"state_par_link"] = np.nan
     par.loc[final_state_pars,"state_par_link"] = init_state_pars
 
     strt_pars = par.loc[par.pargp == "strt", "parnme"].tolist()

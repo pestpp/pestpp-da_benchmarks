@@ -2548,6 +2548,7 @@ def seq_10par_xsec_double_state_test_with_fail():
     pst.pestpp_options["da_use_simulated_states"] = True
     pst.pestpp_options["ies_debug_fail_subset"] = True
     pst.pestpp_options["ies_debug_fail_remainder"] = True
+    pst.pestpp_options["ies_update_by_reals"] = False
 
     pst.write(os.path.join(t_d, "pest_seq.pst"), version=2)
     m_d = os.path.join(test_d, "master_da_double_fail")
@@ -2574,7 +2575,7 @@ def seq_10par_xsec_double_state_test_with_fail():
 
 if __name__ == "__main__":
     
-    
+    seq_10par_xsec_double_state_test_with_fail()
     #shutil.copy2(os.path.join("..","exe","windows","x64","Debug","pestpp-da.exe"),os.path.join("..","bin","pestpp-da.exe"))
     #seq_10par_cycle_parse_test()
     #seq_10par_xsec_hotstart_test()
@@ -2600,6 +2601,6 @@ if __name__ == "__main__":
     #seq_10par_xsec_double_state_test_3()
     #pump_test_2()
     #seq_10par_diff_state_cycle_test()
-    seq_10par_diff_obspar_cycle_test()
+    #seq_10par_diff_obspar_cycle_test()
     #seq_10par_xsec_ineq_test()
     #seq_10par_xsec_double_state_test_with_fail()
